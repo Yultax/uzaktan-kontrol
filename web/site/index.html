@@ -17,12 +17,12 @@
 <a class="lk on" href="/kutuphane" aria-current="page">Kütüphane<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
 <a class="lk" href="https://www.bilkenters.com/hazirlik">Hazırlık<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
 </nav>
-<a class="btn" href="/giris" data-oturum>Giriş Yap</a>
+<a class="btn" href="/giris">Giriş Yap</a>
 <button class="hb" id="hb" aria-label="Menü"><svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 2.2 C8 1.6 14 2.4 20.5 1.9"></path><path d="M1.5 8.1 C7 8.5 13 7.6 19 8.2"></path><path d="M1.5 14 C8 13.5 15 14.4 20.5 13.8"></path></svg></button>
 </header>
 <div id="mmenu" hidden><div class="scrim" id="mscrim"></div><aside class="msheet"><span class="tp"></span><button class="x" id="mx" aria-label="Kapat">✕</button>
 <a class="ml" href="https://www.bilkenters.com/yemekhane-menu">Yemekhane Menü</a><a class="ml" href="https://www.bilkenters.com/note-calculator">Not Hesaplama</a><a class="ml" href="https://www.bilkenters.com/scheduler">Scheduler</a><a class="ml" href="https://www.bilkenters.com/akademik-takvim">Akademik Takvim</a><a class="ml" href="https://www.bilkenters.com/etkinlikler">Etkinlikler</a><a class="ml" href="https://www.bilkenters.com/ulasim">Ulaşım</a><a class="ml on" href="/kutuphane">Kütüphane<i><svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></i></a><a class="ml" href="https://www.bilkenters.com/hazirlik">Hazırlık</a>
-<a class="btn" href="/giris" data-oturum>Giriş Yap</a></aside></div>
+<a class="btn" href="/giris">Giriş Yap</a></aside></div>
 
 <main>
 <section class="view" id="vList">
@@ -114,8 +114,4 @@
 <div class="fb"><span>© 2026 Bilkenters</span><a href="https://www.bilkenters.com/privacy">Gizlilik</a><a href="https://www.bilkenters.com/terms">Kullanım Şartları</a><span class="soul"><button class="fstamp" type="button" id="soul">MADE WITH <span class="h">♥</span> BY STUDENTS</button></span></div>
 </footer>
 <script src="/site/kutuphane/posts.js"></script><script src="/site/kutuphane/kutuphane.js"></script>
-<script>
-/* zaten giriş yapılmışsa üstteki buton doğrudan terminale götürür */
-fetch('/api/oturum',{cache:'no-store'}).then(r=>r.json()).then(j=>{if(!j.giris)return;document.querySelectorAll('[data-oturum]').forEach(a=>{a.href='/';a.textContent='Terminal →'})}).catch(()=>{});
-</script>
 </body></html>

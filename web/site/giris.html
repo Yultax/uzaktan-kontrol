@@ -72,8 +72,8 @@
 </section>
 </main>
 
-<!-- giriş başarılı: üye kartı basılır, terminal şeridi açılır, sayfa terminale devredilir -->
-<div class="gate" id="gate" hidden role="status" aria-live="polite">
+<!-- giriş başarılı: bilkenters üye kartı düşmeye başlar, ekran bir anda kesilir, siyah erişim ekranı → terminal -->
+<div class="gate" id="gate" hidden aria-hidden="true">
 <div class="gate-in">
 <article class="kart paper hi" id="kart"><span class="tape top teal"></span><span class="tape k2"></span>
 <header class="k-top"><span class="k-brand"><img src="/site/assets/logo.png" alt="">bilkenters</span><span class="k-no"><span id="kLbl">ÜYE KARTI</span> · <b id="kNo">0001</b></span></header>
@@ -84,12 +84,15 @@
 <div class="k-row" style="--i:1"><span id="kR2">oturum</span><i class="ld"></i><b>tmux · main</b></div>
 <div class="k-row" style="--i:2"><span id="kR3">giriş</span><i class="ld"></i><b id="kWhen"></b></div>
 </div>
-<span class="stamp green k-stamp" id="kStamp">GİRİŞ BAŞARILI</span>
-<p class="k-hand" id="kHand"></p>
 </article>
-<div class="tty" id="tty"><span class="tty-dots" aria-hidden="true"><i></i><i></i><i></i></span><pre id="ttyOut"></pre></div>
-<p class="skip" id="skip"></p>
 </div>
+</div>
+<div class="hack" id="hack" hidden role="status" aria-live="polite">
+<span class="h-line" aria-hidden="true"></span>
+<pre class="h-log" id="hLog" aria-hidden="true"></pre>
+<pre class="h-hex" id="hHex" aria-hidden="true"></pre>
+<div class="h-mid"><p class="h-eb">bilkenters <b>//</b> <span id="hEb">erişim</span></p><h2 class="h-title" id="hTitle"></h2><p class="h-sub" id="hSub"></p><div class="h-bar" aria-hidden="true"><i id="hBar"></i></div></div>
+<p class="h-skip" id="hSkip"></p>
 </div>
 
 <script src="/site/giris/giris.js"></script>

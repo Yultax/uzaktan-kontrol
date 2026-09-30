@@ -5,9 +5,11 @@ const wait=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
 let lang=localStorage.getItem('bk-lang')||'tr';
 const M={
 tr:{invalid:'Kullanıcı adı ya da şifre hatalı.',invalidSg:'Şifreni unuttuysan',invalidLnk:'şifremi unuttum →',rate:'Postane biraz yoğun.',rateSg:'Çok deneme oldu, {n} sn sonra tekrar dene.',net:'Mektup postaneye ulaşmadı.',netSg:'Bağlantını kontrol edip tekrar dene.',needEmail:'Bilkent mailin lazım.',needEmailSg:'@bilkent.edu.tr ya da @ug.bilkent.edu.tr ile biten bir adres.',mismatch:'Şifreler aynı değil.',mismatchSg:'İkisini de bir daha kontrol et.',empty:'Boş kalan yer var.',emptySg:'Bütün satırları doldurup gönder.',user:'Kullanıcı adı 3–24 karakter, harf ve rakam.',userSg:'Boşluk ve özel karakter olmadan.',weak:'Şifre henüz yeterince güçlü değil.',weakSg:'Yukarıdaki 4 maddeden en az 3’ü işaretlenmeli.',regFail:'Başvurun postaneye ulaşmadı.',regFailSg:'Kayıt API’sine istek gönderilemedi — sunucu şu an yanıt vermiyor. Biraz sonra tekrar dene.',str:['şifre gücü','zayıf','orta','iyi','güçlü'],fTitle:'Kısa bir not yaz',fBody:'Bilkent adresini yaz; sana yeni bir şifre bağlantısı postalayalım.',fSend:'GÖNDER',fFail:'Not gönderilemedi.',fFailSg:'Şifre sıfırlama API’sine istek gönderilemedi. Biraz sonra tekrar dene.',show:'göster',hide:'gizle',
-kLbl:'ÜYE KARTI',kHolder:'KART SAHİBİ',kR1:'yetki',kV1:'terminal · tam erişim',kR2:'oturum',kR3:'giriş',kStamp:'GİRİŞ BAŞARILI',kHand:'hoş geldin, {u} — terminal seni bekliyor',t2:'kimlik doğrulandı · oturum açıldı',t3:'terminale bağlanıyor',skip:'geçmek için bir tuşa bas'},
+kLbl:'ÜYE KARTI',kHolder:'KART SAHİBİ',kR1:'yetki',kV1:'terminal · tam erişim',kR2:'oturum',kR3:'giriş',hEb:'erişim',hTitle:'İZİN VERİLDİ',hSub:'hoş geldin, {u} · terminal açılıyor',hSkip:'geçmek için bir tuşa bas',
+lReq:'oturum isteği',lUser:'kullanıcı',lPw:'parola özeti',lMatch:'eşleşti',lSig:'imza',lCookie:'çerez',lGate:'kapı',lTty:'terminal',lReady:'hazır',lRtt:'yanıt'},
 en:{invalid:'Username or password is wrong.',invalidSg:'Forgot your password?',invalidLnk:'reset it →',rate:'The post office is a bit busy.',rateSg:'Too many attempts, try again in {n}s.',net:'The letter never reached the post office.',netSg:'Check your connection and try again.',needEmail:'You need a Bilkent e-mail.',needEmailSg:'An address ending in @bilkent.edu.tr or @ug.bilkent.edu.tr.',mismatch:'Passwords do not match.',mismatchSg:'Check both once more.',empty:'Something is left blank.',emptySg:'Fill every line, then send.',user:'Username is 3–24 letters and digits.',userSg:'No spaces or special characters.',weak:'Password is not strong enough yet.',weakSg:'At least 3 of the 4 checks above.',regFail:'Your application never arrived.',regFailSg:'The sign-up API request could not be sent — the server is not responding. Try again later.',str:['password strength','weak','fair','good','strong'],fTitle:'Write a short note',fBody:'Enter your Bilkent address; we will mail you a new password link.',fSend:'SEND',fFail:'The note could not be sent.',fFailSg:'The password reset API request could not be sent. Try again later.',show:'show',hide:'hide',
-kLbl:'MEMBER CARD',kHolder:'CARD HOLDER',kR1:'access',kV1:'terminal · full',kR2:'session',kR3:'signed in',kStamp:'ACCESS GRANTED',kHand:'welcome, {u} — your terminal is waiting',t2:'identity verified · session opened',t3:'connecting to terminal',skip:'press any key to skip'}};
+kLbl:'MEMBER CARD',kHolder:'CARD HOLDER',kR1:'access',kV1:'terminal · full',kR2:'session',kR3:'signed in',hEb:'access',hTitle:'ACCESS GRANTED',hSub:'welcome, {u} · opening terminal',hSkip:'press any key to skip',
+lReq:'session request',lUser:'user',lPw:'password hash',lMatch:'match',lSig:'signature',lCookie:'cookie',lGate:'gate',lTty:'terminal',lReady:'ready',lRtt:'rtt'}};
 const t=(k,v={})=>Object.entries(v).reduce((s,[a,b])=>s.replace('{'+a+'}',b),M[lang][k]);
 const escH=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -58,38 +60,60 @@ catch(e){return{code:'NETWORK'}}}
 let cdTimer;
 function rateNote(el,n){clearInterval(cdTimer);const draw=()=>{note(el,'amber',t('rate'),t('rateSg',{n:`<span class="cd">${n}</span>`}));};draw();cdTimer=setInterval(()=>{n--;if(n<=0){clearInterval(cdTimer);el.hidden=true;return;}const cd=$('.cd',el);if(cd)cd.textContent=n;},1000);}
 
-fLogin.addEventListener('submit',async ev=>{ev.preventDefault();clearNotes(fLogin);clearInterval(cdTimer);const user=$('#loginUser').value.trim(),pass=$('#loginPass').value,send=$('#sendLogin');if(!user||!pass){shake(letter);note($('#nLoginForm'),'red',t('empty'),t('emptySg'));return;}busy(send,true);const [r]=await Promise.all([login(user,pass),wait(650)]);busy(send,false);
-if(r.ok){await sendLetter(letter,env,{wax:true});gecis(r.kullanici||user);return;}
+fLogin.addEventListener('submit',async ev=>{ev.preventDefault();clearNotes(fLogin);clearInterval(cdTimer);const user=$('#loginUser').value.trim(),pass=$('#loginPass').value,send=$('#sendLogin');if(!user||!pass){shake(letter);note($('#nLoginForm'),'red',t('empty'),t('emptySg'));return;}busy(send,true);const t0=performance.now();const [r]=await Promise.all([login(user,pass).then(x=>(x.rtt=performance.now()-t0,x)),wait(650)]);busy(send,false);
+if(r.ok){await sendLetter(letter,env,{wax:true});gecis(r.kullanici||user,r.rtt);return;}
 shake(letter);$('#loginPass').select();
 if(r.code==='INVALID_CREDENTIALS')note($('#nLoginPass'),'red',t('invalid'),t('invalidSg'),t('invalidLnk'),openForgot);
 else if(r.code==='RATE_LIMIT_EXCEEDED')rateNote($('#nLoginForm'),r.retryAfter||60);
 else note($('#nLoginForm'),'red',t('net'),t('netSg'));
 });
 
-/* ===== GİRİŞ BAŞARILI: üye kartı → terminal ===== */
-async function gecis(user){
-const gate=$('#gate'),kart=$('#kart'),tty=$('#tty'),out=$('#ttyOut');
-const name=user.charAt(0).toLocaleUpperCase('tr')+user.slice(1);
-let gone=false;const enter=()=>{if(gone)return;gone=true;location.replace('/');};
-['kLbl','kHolder','kR1','kV1','kR2','kR3','kStamp','skip'].forEach(k=>{const el=$('#'+k);if(el)el.textContent=t(k)});
-$('#kName').textContent=name;$('#kHand').textContent=t('kHand',{u:user.toLocaleLowerCase('tr')});
-$('#kNo').textContent=String(new Date().getFullYear()%100).padStart(2,'0')+'-'+String(Math.floor(Math.random()*9000)+1000);
-$('#kWhen').textContent=`${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} · ${new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}`;
+/* ===== GİRİŞ BAŞARILI: bilkenters kartı → kesinti → erişim ekranı → terminal ===== */
+const HEX='0123456789abcdef',GLY='ABCDEF0123456789#%&*/\\<>=+$@';
+const rnd=n=>Array.from({length:n},()=>HEX[Math.random()*16|0]).join('');
+async function sha(txt){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return rnd(64)}}
+function scramble(el,text,ms){return new Promise(res=>{const t0=performance.now(),n=[...text];(function f(){const p=Math.min(1,(performance.now()-t0)/ms),k=Math.floor(p*n.length);
+el.innerHTML=n.map((c,i)=>i<k||c===' '?escH(c):'<span class="s">'+escH(GLY[Math.random()*GLY.length|0])+'</span>').join('');p<1?requestAnimationFrame(f):res()})()})}
+async function gecis(user,rtt){
+const gate=$('#gate'),hack=$('#hack'),log=$('#hLog'),hex=$('#hHex');
+const u=user.toLocaleLowerCase('tr'),name=user.charAt(0).toLocaleUpperCase('tr')+user.slice(1);
+let gone=false;const enter=()=>{if(gone)return;gone=true;hack.classList.add('out');setTimeout(()=>location.replace('/'),RM?0:260);};
+/* 1 · kâğıt dünya: her zamanki bilkenters animasyonu geliyormuş gibi */
+['kLbl','kHolder','kR1','kV1','kR2','kR3'].forEach(k=>{$('#'+k).textContent=t(k)});
+$('#kName').textContent=name;$('#kNo').textContent=String(d.getFullYear()%100).padStart(2,'0')+'-'+String(Math.floor(Math.random()*9000)+1000);
+$('#kWhen').textContent=`${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
+const dig=sha(`${u}.${Date.now()}.${Math.random()}`);
 gate.hidden=false;void gate.offsetWidth;gate.classList.add('on');
-setTimeout(()=>{addEventListener('keydown',enter);gate.addEventListener('click',enter);},RM?0:900);
-await wait(1500);gate.classList.add('slam');
-await wait(170);kart.classList.add('thud');
-await wait(330);gate.classList.add('greet');
-await wait(380);gate.classList.add('tty-on');
-const prompt=`<span class="u">${escH(user)}@bilkenters</span>:<span class="d">~</span>$ `,cmd='tmux attach -t main';
-for(let i=0;i<=cmd.length;i++){if(gone)return;out.innerHTML=prompt+escH(cmd.slice(0,i))+'<span class="cur"></span>';await wait(i?26+Math.random()*30:260);}
-await wait(160);out.innerHTML=prompt+cmd+`\n<span class="ok">✓</span> ${t('t2')}`;
-await wait(300);out.innerHTML+=`\n<span class="m">→</span> ${t('t3')}<span class="cur"></span>`;
-await wait(560);if(gone)return;
-/* şerit olduğu yerden ekranı kaplayacak şekilde büyür */
-const r=tty.getBoundingClientRect();Object.assign(tty.style,{top:r.top+'px',left:r.left+'px',width:r.width+'px',height:r.height+'px'});tty.classList.add('full');gate.classList.add('leave');void tty.offsetWidth;
-tty.classList.add('grow');Object.assign(tty.style,{top:'0px',left:'0px',width:'100vw',height:'100vh'});
-await wait(620);enter();}
+await wait(1050);
+/* 2 · kesinti: tek karede siyah, ortadan ışık çizgisi */
+hack.hidden=false;document.body.classList.add('cut');hack.classList.add('cut');
+addEventListener('keydown',enter);hack.addEventListener('click',enter);
+$('#hSkip').textContent=t('hSkip');$('#hEb').textContent=t('hEb');
+await wait(230);
+/* 3 · erişim ekranı: loglar ve hex akışı hızla geçer */
+let rows=[],hexOn=true,off=Math.random()*0xffff|0;
+(function hx(){if(!hexOn||gone)return;for(let i=0;i<3;i++){off=(off+16)&0xffffff;rows.push('<b>'+off.toString(16).padStart(6,'0')+'</b>  '+rnd(32).match(/../g).join(' '));}rows=rows.slice(-60);hex.innerHTML=rows.join('\n');setTimeout(hx,RM?400:28)})();
+const h=await dig,T0=performance.now(),ts=()=>{const s=((performance.now()-T0)/1000).toFixed(3);return`<span class="t">[${s.padStart(8,' ')}]</span> `};
+const dots=(a,n)=>escH(a)+' '+'.'.repeat(Math.max(2,n-a.length))+' ';
+const L=[
+ ()=>`bilkenters-auth <span class="k">${t('lReq')}</span>`,
+ ()=>dots(t('lUser'),22)+`<span class="v">${escH(u)}</span>`,
+ ()=>dots(t('lPw'),22)+`scrypt n=16384 r=8 p=1 <span class="ok">${t('lMatch')}</span>`,
+ ()=>dots(t('lSig'),22)+`hmac-sha256 <span class="v">${h.slice(0,16)}…${h.slice(-8)}</span>`,
+ ()=>dots(t('lCookie'),22)+`bk_oturum · httponly · samesite=lax · 30d`,
+ ()=>dots(t('lRtt'),22)+`<span class="v">${Math.max(1,Math.round(rtt||0))} ms</span>`,
+ ()=>dots(t('lGate'),22)+`forward_auth /api/yetki <span class="ok">204</span>`,
+ ()=>dots(t('lTty'),22)+`ttyd · tmux attach -t main <span class="ok">${t('lReady')}</span>`];
+for(const line of L){if(gone)return;log.innerHTML+=ts()+line()+'\n';await wait(70+Math.random()*50);}
+/* ortada "İZİN VERİLDİ" harf harf çözülür */
+hack.classList.add('grant');
+const tm=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+$('#hSub').innerHTML=escH(t('hSub',{u:'\u0000'})).replace('\u0000',`<span class="u">${escH(u)}@bilkenters</span>`)+` · ${tm}`;
+requestAnimationFrame(()=>{$('#hBar').style.width='100%'});
+await scramble($('#hTitle'),t('hTitle'),RM?0:520);
+await wait(900);hexOn=false;
+/* 4 · zemin terminalin rengine döner */
+enter();}
 /* terminalden geri gelinirse sayfa önbellekten açılmasın, formla başlasın */
 addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
 
