@@ -1,0 +1,18 @@
+/* Minimal utility layer: the material grammar as classes, for plain-HTML consumers. React components carry the same styles inline. */
+.bk-board{position:relative;background:var(--surface-board);color:var(--text-on-board);font:var(--type-body);-webkit-font-smoothing:antialiased}
+.bk-board::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.5;background-image:var(--texture-board)}
+.bk-board>*{position:relative;z-index:1}
+.bk-paper{position:relative;background:var(--surface-paper);color:var(--text-ink);box-shadow:var(--shadow-paper);border-radius:var(--radius-paper-a)}
+.bk-paper::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.7;background-image:var(--texture-paper)}
+.bk-paper--kraft{background:var(--surface-kraft)}
+.bk-paper--b{border-radius:var(--radius-paper-b)}
+.bk-paper--c{border-radius:var(--radius-paper-c)}
+.bk-tape{position:absolute;pointer-events:none;width:82px;height:23px;box-shadow:var(--shadow-tape);background:var(--tape-amber)}
+.bk-tape--teal{background:var(--tape-teal)}
+.bk-stamp{display:inline-flex;align-items:center;gap:3px;border:var(--stroke-stamp) solid currentColor;border-radius:var(--radius-stamp);font:var(--type-stamp-md);letter-spacing:var(--tracking-stamp);padding:3px 7px 2px;white-space:nowrap;mix-blend-mode:multiply;-webkit-mask-image:var(--mask-stamp);mask-image:var(--mask-stamp);transform:rotate(var(--rot,-2deg))}
+.bk-sticker{display:inline-block;border:var(--stroke-sticker) solid currentColor;border-radius:var(--radius-sticker);padding:2px 5px;font:var(--type-micro);letter-spacing:var(--tracking-sticker);mix-blend-mode:multiply;transform:rotate(var(--rot,-2deg))}
+.bk-hl{background:var(--marker-swipe);margin:0 -5px;padding:0 5px}
+.bk-leader{flex:1 1 auto;min-width:12px;border-bottom:var(--leader);transform:translateY(-4px)}
+.bk-hand{font:var(--type-hand-md);color:var(--text-pencil)}
+a{color:var(--link-on-board)}a:hover{color:var(--link-on-board-hover);text-decoration:underline}
+.bk-paper a{color:var(--link-on-paper);border-bottom:1px dashed var(--text-pencil);text-decoration:none}.bk-paper a:hover{color:var(--text-ink);border-bottom-color:var(--text-ink)}

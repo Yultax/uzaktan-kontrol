@@ -1,0 +1,49 @@
+:root{
+  /* radii — paper is barely rounded; each sheet gets a slightly irregular corner set */
+  --radius-paper-a:2px 3px 2px 4px;
+  --radius-paper-b:3px 2px 4px 2px;
+  --radius-paper-c:3px 2px 3px 3px;
+  --radius-sm:3px;
+  --radius-md:4px;
+  --radius-lg:5px;
+  --radius-sheet-mobile:14px 14px 0 0;
+  --radius-stamp:4px;
+  --radius-sticker:2px;
+  --radius-pill:999px;
+
+  /* shadows */
+  --shadow-paper:inset 0 1px 0 rgba(255,255,255,.5),0 2px 3px rgba(0,0,0,.35),0 18px 30px -18px rgba(0,0,0,.9);
+  --shadow-paper-lift:0 10px 26px rgba(0,0,0,.45);
+  --shadow-modal:0 30px 60px -20px rgba(0,0,0,.9);
+  --shadow-drawer:0 -10px 40px rgba(0,0,0,.5);
+  --shadow-tape:0 1px 2px rgba(0,0,0,.25);
+  --shadow-polaroid:0 2px 6px rgba(0,0,0,.25);
+  --shadow-tab-active:0 2px 3px rgba(0,0,0,.35);
+  --shadow-pill:0 1px 0 rgba(0,0,0,.3);
+
+  /* rotations — every handmade object tilts a little */
+  --rot-sheet:.3deg; /* @kind other */
+  --rot-sheet-alt:-.2deg; /* @kind other */
+  --rot-tape:-3deg; /* @kind other */
+  --rot-tape-alt:4deg; /* @kind other */
+  --rot-sticker:-2deg; /* @kind other */
+  --rot-stamp-big:-11deg; /* @kind other */
+  --rot-polaroid:-2.4deg; /* @kind other */
+  --rot-hand:-2deg; /* @kind other */
+
+  /* borders */
+  --stroke-stamp:2px; /* @kind other */
+  --stroke-stamp-lg:3px; /* @kind other */
+  --stroke-sticker:1.5px; /* @kind other */
+  --stroke-dashed:1.5px dashed var(--border-on-paper-strong); /* @kind other */
+  --leader:2px dotted var(--leader-dots); /* @kind other */
+  --ink-rule:1.7px; /* @kind other */
+
+  /* textures (SVG turbulence) */
+  --texture-board:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); /* @kind other */
+  --texture-paper:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.08'/%3E%3C/svg%3E"); /* @kind other */
+  --mask-stamp:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 6 -1.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); /* @kind other */
+  --tape-amber:repeating-linear-gradient(90deg,var(--bk-tape-amber-a) 0 7px,var(--bk-tape-amber-b) 7px 14px); /* @kind other */
+  --tape-teal:repeating-linear-gradient(90deg,var(--bk-tape-teal-a) 0 7px,var(--bk-tape-teal-b) 7px 14px); /* @kind other */
+  --marker-swipe:linear-gradient(100deg,transparent 1%,var(--bk-marker) 4%,var(--bk-marker) 96%,transparent 99%); /* @kind other */
+}

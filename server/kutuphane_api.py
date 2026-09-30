@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""kutuphane API: WebSocket'siz (HTTP long-poll) terminal + görsel yükleme.
+"""kutuphane API: giriş/oturum + WebSocket'siz (HTTP long-poll) terminal + görsel yükleme.
 
-Caddy'nin arkasında 127.0.0.1:7682 dinler; kimlik doğrulama Caddy'de (basic auth).
+Caddy'nin arkasında 127.0.0.1:7682 dinler. Giriş sayfası /api/giris'e yollar; doğru şifrede
+imzalı bir oturum çerezi yazılır. Caddy korunan her istekte forward_auth ile /api/yetki'ye sorar.
 Sadece Python standart kütüphanesi kullanır.
 
+  POST /api/giris   {"kullanici":..,"sifre":..} -> {"ok":true} + çerez  (herkese açık)
+  GET  /api/oturum                             -> {"giris":bool}        (herkese açık)
+  GET  /api/yetki                              -> 200 / 302 / 403       (Caddy forward_auth)
   POST /api/open    {"cols":..,"rows":..}      -> {"sid":..}   (tmux "main" oturumuna bağlanır)
   GET  /api/read    ?sid=&offset=              -> ham çıktı; X-Start / X-Next / X-Alive başlıkları
   POST /api/write   ?sid=   (gövde: girdi)
@@ -12,12 +16,15 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/upload  (gövde: görsel)            -> {"path":..}
 """
 import fcntl
+import hashlib
+import hmac
 import json
 import os
 import pty
 import secrets
 import signal
 import struct
+import sys
 import termios
 import threading
 import time
@@ -35,6 +42,76 @@ IDLE_TIMEOUT = 90               # bu kadar sessiz kalan oturum kapatılır (tmux
 MAX_SESSIONS = 8
 MAX_UPLOAD = 25 * 1024 * 1024
 IMAGE_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp"}
+AUTH_FILE = os.environ.get("KUTUPHANE_AUTH", "/etc/kutuphane/auth.json")
+COOKIE = "bk_oturum"
+SESSION_TTL = 30 * 24 * 3600    # oturum çerezi 30 gün geçerli
+FAIL_WINDOW = 600               # bu sürede
+FAIL_MAX = 5                    # bu kadar hatalı giriş -> geçici blok (fail2ban da ayrıca izler)
+LOGIN_PAGE = "/kutuphane"
+
+
+# ---------- kimlik ----------
+def hash_password(password, salt):
+    return hashlib.scrypt(password.encode(), salt=salt, n=2 ** 14, r=8, p=1, dklen=32)
+
+
+def set_password(user, password):
+    """auth.json'u yazar; yeni gizli anahtar = eski oturumlar düşer."""
+    salt = secrets.token_bytes(16)
+    data = {"user": user, "salt": salt.hex(), "hash": hash_password(password, salt).hex(),
+            "secret": secrets.token_hex(32)}
+    os.makedirs(os.path.dirname(AUTH_FILE), exist_ok=True)
+    tmp = AUTH_FILE + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, AUTH_FILE)
+
+
+def load_auth():
+    try:
+        with open(AUTH_FILE) as f:
+            a = json.load(f)
+        return a["user"], bytes.fromhex(a["salt"]), bytes.fromhex(a["hash"]), bytes.fromhex(a["secret"])
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def sign(secret, user, exp):
+    return hmac.new(secret, f"{user}.{exp}".encode(), hashlib.sha256).hexdigest()
+
+
+def make_token(auth):
+    user, _, _, secret = auth
+    exp = int(time.time()) + SESSION_TTL
+    return f"{exp}.{sign(secret, user, exp)}"
+
+
+def valid_token(token):
+    auth = load_auth()
+    if not auth or not token or "." not in token:
+        return False
+    exp, sig = token.split(".", 1)
+    if not exp.isdigit() or int(exp) < time.time():
+        return False
+    return hmac.compare_digest(sig, sign(auth[3], auth[0], int(exp)))
+
+
+fails = {}                      # ip -> hatalı giriş zamanları
+fails_lock = threading.Lock()
+
+
+def recent_fails(ip, add=False):
+    now = time.time()
+    with fails_lock:
+        lst = [t for t in fails.get(ip, []) if now - t < FAIL_WINDOW]
+        if add:
+            lst.append(now)
+        if lst:
+            fails[ip] = lst
+        else:
+            fails.pop(ip, None)
+        return lst
 
 
 class Session:
@@ -140,6 +217,10 @@ class Handler(BaseHTTPRequestHandler):
         if isinstance(body, (dict, list)):
             body = json.dumps(body).encode()
         self.send_response(code)
+        if not self._consumed and int(self.headers.get("Content-Length") or 0):
+            # okunmamış gövde bağlantıda kalırsa sonraki istek bozulur: bağlantıyı kapat
+            self.close_connection = True
+            self.send_header("Connection", "close")
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
@@ -152,12 +233,55 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         if length > limit:
             raise ValueError("too large")
+        self._consumed = True
         return self.rfile.read(length) if length else b""
 
     def _session(self, qs):
         sid = (qs.get("sid") or [""])[0]
         with sessions_lock:
             return sessions.get(sid)
+
+    def _cookie(self, name):
+        for part in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == name:
+                return v
+        return None
+
+    def _authed(self):
+        return valid_token(self._cookie(COOKIE))
+
+    def _client_ip(self):
+        # Caddy X-Forwarded-For'a gerçek istemci IP'sini yazar (dışarıdan gelen değere güvenmez)
+        return (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[-1].strip()
+
+    def _login(self):
+        ip = self._client_ip()
+        blocked = recent_fails(ip)
+        if len(blocked) >= FAIL_MAX:
+            wait = int(FAIL_WINDOW - (time.time() - blocked[0])) + 1
+            return self._send(429, {"error": "RATE_LIMIT_EXCEEDED", "retryAfter": wait})
+        try:
+            req = json.loads(self._body(4096) or b"{}")
+        except ValueError:
+            return self._send(400, {"error": "bad request"})
+        user = str(req.get("kullanici") or "").strip().lower()
+        password = str(req.get("sifre") or "")
+        auth = load_auth()
+        if not auth:
+            return self._send(503, {"error": "NO_AUTH_FILE"})
+        ok = hmac.compare_digest(user.encode(), auth[0].lower().encode())
+        ok = hmac.compare_digest(hash_password(password, auth[1]), auth[2]) and ok
+        if not ok:
+            recent_fails(ip, add=True)
+            time.sleep(1)
+            # 401: Caddy log'u -> fail2ban bu satırları sayar
+            return self._send(401, {"error": "INVALID_CREDENTIALS"})
+        with fails_lock:
+            fails.pop(ip, None)
+        secure = "" if self.headers.get("X-Forwarded-Proto") == "http" else "; Secure"
+        cookie = f"{COOKIE}={make_token(auth)}; Path=/; Max-Age={SESSION_TTL}; HttpOnly; SameSite=Lax{secure}"
+        return self._send(200, {"ok": True, "kullanici": auth[0]}, headers={"Set-Cookie": cookie})
 
     def _same_origin(self):
         # CSRF koruması: özel başlık zorunlu (çapraz sitelerde preflight'a takılır) + Origin kontrolü
@@ -169,6 +293,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # --- uç noktalar ---
     def do_GET(self):
+        self._consumed = False
         url = urlparse(self.path)
         qs = parse_qs(url.query)
         if url.path == "/api/read":
@@ -182,16 +307,30 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, data, "application/octet-stream", {
                 "X-Start": str(start), "X-Next": str(nxt), "X-Alive": "1" if alive else "0",
             })
+        if url.path == "/api/yetki":
+            # Caddy forward_auth: 2xx = geçsin. Tarayıcıda sayfa açılıyorsa vitrine yönlendir,
+            # diğer istekleri (WebSocket, API, dosya) 403 ile kes. 401 değil: fail2ban saymasın.
+            if self._authed():
+                return self._send(204)
+            accept = self.headers.get("Accept") or ""
+            if self.headers.get("X-Forwarded-Method", "GET") == "GET" and "text/html" in accept:
+                return self._send(302, headers={"Location": LOGIN_PAGE})
+            return self._send(403, {"error": "giris gerekli"})
+        if url.path == "/api/oturum":
+            return self._send(200, {"giris": self._authed()})
         if url.path == "/api/health":
             return self._send(200, {"ok": True, "sessions": len(sessions)})
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
+        self._consumed = False
         url = urlparse(self.path)
         qs = parse_qs(url.query)
         if not self._same_origin():
             return self._send(403, {"error": "forbidden"})
         try:
+            if url.path == "/api/giris":
+                return self._login()
             if url.path == "/api/open":
                 req = json.loads(self._body() or b"{}")
                 with sessions_lock:
@@ -241,6 +380,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--sifre-ayarla"]:
+        # kurulum/şifre değişikliği: echo -n SIFRE | python3 kutuphane_api.py --sifre-ayarla KULLANICI
+        set_password(sys.argv[2], sys.stdin.read().rstrip("\n"))
+        sys.exit(0)
     signal.signal(signal.SIGCHLD, signal.SIG_DFL)
     threading.Thread(target=janitor, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)

@@ -1,0 +1,29 @@
+:root{
+  /* tool-grade: brief, springy, once */
+  --ease-settle:cubic-bezier(.22,1,.36,1); /* @kind other */     /* sheets, view swaps */
+  --ease-press:cubic-bezier(.2,.9,.2,1); /* @kind other */       /* stamps land */
+  --ease-pop:cubic-bezier(.34,1.56,.64,1); /* @kind other */     /* star press */
+  --ease-draw:cubic-bezier(.4,0,.2,1); /* @kind other */         /* marker strokes */
+  --dur-fast:150ms; /* @kind other */
+  --dur-view:260ms; /* @kind other */
+  --dur-stamp:340ms; /* @kind other */
+  --dur-sheet:420ms; /* @kind other */
+  --dur-draw:620ms; /* @kind other */
+  --stagger-stamp:42ms; /* @kind other */
+  --stagger-photo:80ms; /* @kind other */
+  --rise-sheet:22px; /* @kind other */
+  --rise-row:8px; /* @kind other */
+  --rise-view:10px; /* @kind other */
+}
+@keyframes bk-sheet-in{from{opacity:0;transform:translateY(var(--rise-sheet)) rotate(var(--rot,0deg))}to{opacity:1;transform:translateY(0) rotate(var(--rot,0deg))}}
+@keyframes bk-stamp-in{from{opacity:0;transform:scale(1.25) rotate(var(--rot,0deg))}to{opacity:1;transform:scale(1) rotate(var(--rot,0deg))}}
+@keyframes bk-view-in{from{opacity:0;transform:translateY(var(--rise-view))}to{opacity:1;transform:none}}
+@keyframes bk-modal-in{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1) rotate(-.4deg)}}
+@keyframes bk-draw{to{stroke-dashoffset:0}}
+@keyframes bk-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.7)}}
+@keyframes bk-star-press{0%{transform:scale(.6)}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+@keyframes bk-fade-in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  :root{--rise-sheet:0px;--rise-row:0px;--rise-view:0px}
+  .bk-motion *{animation-duration:.2s!important;animation-name:bk-fade-in!important}
+}

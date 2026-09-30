@@ -1,0 +1,38 @@
+:root{
+  --font-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --font-body:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
+  --font-hand:"Caveat",cursive;
+
+  /* display (Bricolage) — content names are the heroes */
+  --type-display-xl:800 46px/1 var(--font-display);       /* SERVİS BİTTİ stamp, hero numbers */
+  --type-display-lg:700 30px/1.1 var(--font-display);     /* detail title */
+  --type-display-md:700 26px/1 var(--font-display);       /* page headline */
+  --type-display-sm:700 23px/1 var(--font-display);       /* sheet title */
+  --type-item-lg:600 21px/1.15 var(--font-display);       /* primary list item, desktop */
+  --type-item-md:600 18px/1.15 var(--font-display);       /* primary list item, mobile floor */
+  --type-item-sm:600 17px/1.15 var(--font-display);       /* compact list item */
+  --type-stamp-lg:800 22px/1 var(--font-display);
+  --type-stamp-md:800 15px/1 var(--font-display);
+  --type-stamp-sm:800 13px/1 var(--font-display);
+  --type-tab:700 15px/1 var(--font-display);
+
+  /* body (Instrument Sans) */
+  --type-body:400 14px/1.4 var(--font-body);
+  --type-body-strong:600 14px/1.4 var(--font-body);
+  --type-ui:600 13px/1 var(--font-body);                  /* segmented controls, buttons */
+  --type-meta:500 13px/1.3 var(--font-body);              /* hours, counts */
+  --type-caption:400 12px/1.4 var(--font-body);
+  --type-eyebrow:700 11px/1 var(--font-body);             /* letter-spaced, uppercase */
+  --type-micro:700 10px/1 var(--font-body);               /* sticker text, vote counts */
+
+  /* hand (Caveat) — footnotes, hints, favourites */
+  --type-hand-lg:600 21px/1.2 var(--font-hand);
+  --type-hand-md:600 17px/1 var(--font-hand);
+  --type-hand-sm:500 14px/1 var(--font-hand);
+
+  --tracking-eyebrow:.16em; /* @kind other */
+  --tracking-sticker:.14em; /* @kind other */
+  --tracking-stamp:.02em; /* @kind other */
+  --tracking-display:-.01em; /* @kind other */
+  --text-floor:13px; /* @kind spacing */
+}

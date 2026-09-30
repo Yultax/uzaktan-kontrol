@@ -1,0 +1,28 @@
+:root{
+  /* values are lifted verbatim from the Yemekhane implementation, not snapped to a grid */
+  --space-1:2px;
+  --space-2:5px;
+  --space-3:6px;
+  --space-4:9px;
+  --space-5:10px;
+  --space-6:13px;
+  --space-7:18px;
+  --space-8:26px;
+  --space-9:40px;
+  --space-10:72px;
+
+  --row-pad-y:13px 11px; /* @kind spacing */        /* dish row: top bottom */
+  --row-pad-y-compact:11px 9px; /* @kind spacing */
+  --row-gap:10px;
+  --sheet-pad-mobile:18px 16px 14px; /* @kind spacing */
+  --sheet-pad-desktop:24px 26px 18px; /* @kind spacing */
+  --sheet-gap:28px;             /* between sheets */
+  --sheet-gap-x-desktop:40px;
+  --page-max:1240px;
+  --page-pad-x:16px;
+  --page-pad-x-desktop:40px;
+  --nav-height:64px;
+  --input-height:44px;
+  --button-height:40px;
+  --hit-min:44px;
+}

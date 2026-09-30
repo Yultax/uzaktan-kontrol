@@ -1,0 +1,121 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kütüphane — bilkenters</title><meta name="description" content="Linux, Ubuntu, Zabbix ve ağ üzerine kısa, uygulamalı yazılar. bilkenters kütüphanesi."><link rel="icon" type="image/png" href="/site/assets/logo.png"><link rel="stylesheet" href="/site/styles.css"><link rel="stylesheet" href="/site/kutuphane/kutuphane.css"></head>
+<body class="bk-board">
+<header class="nav" id="nav">
+<a class="brand" href="https://www.bilkenters.com/"><img src="/site/assets/logo.png" alt=""><span class="wm">bilkenters<svg viewBox="0 0 100 7" preserveAspectRatio="none" fill="none" stroke="#4C7DF0" stroke-width="1.7" stroke-linecap="round"><path d="M1 4.5 C12 2 20 6 32 3.5 S52 1.5 64 4 S82 5.5 99 2.5"></path></svg></span></a>
+<nav class="links">
+<a class="lk" href="https://www.bilkenters.com/yemekhane-menu">Yemekhane Menü<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+<a class="lk" href="https://www.bilkenters.com/note-calculator">Not Hesaplama<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+<a class="lk" href="https://www.bilkenters.com/scheduler">Scheduler<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+<a class="lk" href="https://www.bilkenters.com/akademik-takvim">Akademik Takvim<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+<a class="lk" href="https://www.bilkenters.com/etkinlikler">Etkinlikler<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+<span class="dd" id="dd"><button class="lk" type="button" id="ddBtn" aria-haspopup="menu" aria-expanded="false">Kampüs<span class="cv">⌄</span><svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></button>
+<div class="note" role="menu" id="ddNote" hidden><span class="tape"></span>
+<a class="ni" href="https://www.bilkenters.com/kafeteryalar"><b>Kafeteryalar</b><span>Kampüsteki kafelerin saatleri, menüleri ve puanları.</span></a>
+<a class="ni" href="https://www.bilkenters.com/yurtlar"><b>Yurtlar</b><span>Yurt bilgileri, oda tipleri ve öğrenci yorumları.</span></a>
+<a class="ni" href="https://www.bilkenters.com/ulasim"><b>Ulaşım</b><span>Servis ve ring saatleri, sıradaki sefer.</span></a>
+</div></span>
+<a class="lk on" href="/kutuphane" aria-current="page">Kütüphane<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+<a class="lk" href="https://www.bilkenters.com/hazirlik">Hazırlık<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></a>
+</nav>
+<a class="btn" href="/giris" data-oturum>Giriş Yap</a>
+<button class="hb" id="hb" aria-label="Menü"><svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 2.2 C8 1.6 14 2.4 20.5 1.9"></path><path d="M1.5 8.1 C7 8.5 13 7.6 19 8.2"></path><path d="M1.5 14 C8 13.5 15 14.4 20.5 13.8"></path></svg></button>
+</header>
+<div id="mmenu" hidden><div class="scrim" id="mscrim"></div><aside class="msheet"><span class="tp"></span><button class="x" id="mx" aria-label="Kapat">✕</button>
+<a class="ml" href="https://www.bilkenters.com/yemekhane-menu">Yemekhane Menü</a><a class="ml" href="https://www.bilkenters.com/note-calculator">Not Hesaplama</a><a class="ml" href="https://www.bilkenters.com/scheduler">Scheduler</a><a class="ml" href="https://www.bilkenters.com/akademik-takvim">Akademik Takvim</a><a class="ml" href="https://www.bilkenters.com/etkinlikler">Etkinlikler</a><a class="ml" href="https://www.bilkenters.com/ulasim">Ulaşım</a><a class="ml on" href="/kutuphane">Kütüphane<i><svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></i></a><a class="ml" href="https://www.bilkenters.com/hazirlik">Hazırlık</a>
+<a class="btn" href="/giris" data-oturum>Giriş Yap</a></aside></div>
+
+<main>
+<section class="view" id="vList">
+<div class="hero wrap" data-screen-label="kütüphane hero">
+<div>
+<p class="eyebrow">BİLKENTERS KÜTÜPHANE</p>
+<h1>Kütüphane<svg viewBox="0 0 100 9" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3.5" stroke-linecap="round"><path d="M2 6 C20 3 40 7 60 4.5 S88 3 98 5.5"></path></svg></h1>
+<p class="lead">Sunucu odasından kampüs Wi-Fi'ına, terminalden Zabbix paneline: kısa, uygulamalı, kopyala-yapıştır yazılar. Bir kitabı raftan çek, oku, yerine koy.</p>
+<p class="count"><span id="cnt">6</span> yazı rafta · <span id="lockcnt">4</span> yazı üyelere · son ekleme 24 Eylül 2026</p>
+</div>
+<aside class="paper hi libcard" data-screen-label="kütüphaneci notu"><span class="tape top teal" style="width:64px;margin-left:-32px"></span>
+<p class="eb">KÜTÜPHANECİ NOTU</p>
+<p class="ttl">bu hafta nereden başlarsın?</p>
+<p>Linux'a yeniysen <button class="plink" data-open="linux-dosya-sistemi">dosya sistemi</button> ile başla, sonra <button class="plink" data-open="ubuntu-apt">apt</button>. Zabbix serisi iki yazı; ikisini arka arkaya okuman bir saat sürmez.</p>
+<div class="sig"><span class="hand">— emre, kütüphaneci</span><span class="sticker green" style="--rot:3deg">YENİ SERİ</span></div>
+</aside>
+</div>
+
+<div class="ctl wrap" data-screen-label="filtreler">
+<div class="tabs" id="tabs" role="tablist" aria-label="Kategori"></div>
+<label class="search"><input type="search" id="q" placeholder="yazı, komut ya da konu ara…" autocomplete="off"><span class="k">/</span></label>
+<div class="seg" role="radiogroup" aria-label="Görünüm"><button type="button" class="on" data-view="shelf" role="radio" aria-checked="true">Raf</button><button type="button" data-view="catalog" role="radio" aria-checked="false">Katalog</button></div>
+</div>
+
+<div class="shelves wrap" id="shelfView" data-screen-label="raf">
+<div class="shelf" id="shelf1"><span class="shelf-lbl">Açık Raf · Herkese</span><p class="hand on-board shelf-note">üstüne gel, kısa özet çıkar</p><div class="plank"><i></i></div></div>
+<div class="shelf" id="shelf2" style="margin-top:56px"><span class="shelf-lbl">Üye Rafı</span><div class="plank"><i></i></div></div>
+</div>
+
+<div class="catalog wrap" id="catalogView" hidden data-screen-label="katalog">
+<article class="paper catsheet"><span class="tape top"></span>
+<p class="eb">KART KATALOĞU</p><h2>Tüm yazılar</h2>
+<svg class="rule" viewBox="0 0 300 6" preserveAspectRatio="none" fill="none" stroke="#221E17" stroke-width="1.7" stroke-linecap="round"><path d="M2 3.5 C40 1.5 70 5 120 3 S200 1.5 298 3.5"></path></svg>
+<div id="catRows" style="margin-top:12px"></div>
+</article>
+<aside class="paper kraft catcard"><span class="tape tl"></span>
+<p class="eb">SINIFLAMA</p><p class="ttl">Raf numaraları</p>
+<div class="ln h"><span>kod</span><span>konu</span></div>
+<div class="ln"><span>LNX</span><b>Linux temelleri</b></div>
+<div class="ln"><span>UBN</span><b>Ubuntu</b></div>
+<div class="ln"><span>ZBX</span><b>Zabbix izleme</b></div>
+<div class="ln"><span>NET</span><b>Ağ ve SSH</b></div>
+<div class="ln rest"><span>—</span><b>—</b></div>
+<p class="hand" style="margin:12px 0 0">numara sırası = okuma sırası</p>
+</aside>
+</div>
+</section>
+
+<section class="view reader wrap" id="vRead" hidden data-screen-label="yazı">
+<div class="rtop"><button class="blink" id="back">← rafa dön</button><span class="crumb">Kütüphane · <b id="crumbCat"></b> · <span id="crumbNo"></span></span></div>
+<div class="rgrid">
+<article class="paper article" id="article"><span class="tape tl"></span><span class="ribbon" id="ribbon" aria-hidden="true"></span>
+<div class="meta"><span class="sticker" id="aCat"></span><span id="aDate"></span><span>·</span><span id="aMin"></span><span>·</span><span id="aAuthor"></span></div>
+<h1 id="aTitle"></h1><p class="sub" id="aSub"></p>
+<svg class="rule" viewBox="0 0 300 6" preserveAspectRatio="none" fill="none" stroke="#221E17" stroke-width="1.7" stroke-linecap="round"><path d="M2 3.5 C40 1.5 70 5 120 3 S200 1.5 298 3.5"></path></svg>
+<div class="body" id="aBody"></div>
+<div class="done" id="done"><span class="stamp lg green">OKUNDU</span><span class="hand">sonuna geldin — rafa geri koyabilirsin</span></div>
+<div class="pn2"><button type="button" id="prev"><small>ÖNCEKİ</small><b></b></button><button type="button" id="next" class="nx"><small>SONRAKİ</small><b></b></button></div>
+</article>
+<aside class="side">
+<nav class="paper hi toc" aria-label="İçindekiler"><span class="tape top" style="width:58px;margin-left:-29px"></span><p class="eb">İÇİNDEKİLER</p><p class="ttl" id="tocTitle"></p><div id="toc"></div></nav>
+<div class="paper kraft checkout"><span class="tape tr teal"></span><p class="ttl">Ödünç kartı</p><div id="chk"></div><div class="act"><button class="mark" id="mark">işaretle →</button><span class="stamp sm blue" id="chkStamp">RAFTA</span></div></div>
+</aside>
+</div>
+</section>
+</main>
+
+<footer class="ft">
+<svg class="torn" viewBox="0 0 1440 14" preserveAspectRatio="none" aria-hidden="true"><path fill="#E9DFC6" fill-opacity=".9" d="M0 0H1440V4L1418 8 1396 3 1370 9 1348 5 1320 10 1290 4 1262 8 1236 3 1210 9 1180 6 1150 11 1122 5 1094 9 1066 4 1038 8 1010 3 984 10 956 6 928 9 900 4 874 8 846 3 818 10 790 6 762 9 736 4 708 8 680 3 652 10 626 6 598 9 570 4 544 8 516 3 490 10 462 6 434 9 406 4 380 8 352 3 326 10 298 6 270 9 244 4 218 8 190 3 164 10 136 6 108 9 80 4 54 8 26 3 0 7Z"></path></svg>
+<div class="ftg">
+<div>
+<div class="scrap">
+<a class="brand" href="https://www.bilkenters.com/"><img src="/site/assets/logo.png" alt=""><span class="wm">bilkenters<svg viewBox="0 0 100 7" preserveAspectRatio="none" fill="none" stroke="#4C7DF0" stroke-width="1.7" stroke-linecap="round"><path d="M1 4.5 C12 2 20 6 32 3.5 S52 1.5 64 4 S82 5.5 99 2.5"></path></svg></span></a>
+<p>Bilkent Üniversitesi öğrencileri için geliştirilmiş, kampüs hayatını kolaylaştıran kapsamlı bir rehber ve araç seti.</p>
+</div>
+<div class="soc">
+<a class="so" href="https://instagram.com/bilkenterscom" target="_blank" rel="noopener" aria-label="Instagram"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M18 2.5 C27 1.5 33.5 8 33.5 17.5 C33.5 27 27 34 17.5 33.5 C8 33 2 27 2.5 17 C3 8 10 3.2 18 2.5"></path><rect x="11" y="11" width="14" height="14" rx="4"></rect><circle cx="18" cy="18" r="3.2"></circle><circle cx="22.4" cy="13.6" r=".6" fill="currentColor"></circle></svg></a>
+<a class="so" href="https://youtube.com/@bilkenterscom" target="_blank" rel="noopener" aria-label="YouTube"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.6 C26.5 1.8 34 8.5 33.4 18 C33 27.5 26 34.2 17.5 33.4 C8.5 32.6 2.4 26.5 2.6 17.6 C2.8 9 9 3.3 17 2.6"></path><rect x="10" y="12" width="16" height="12" rx="3.5"></rect><path d="M16 15.2v5.6l4.6-2.8z" fill="currentColor" stroke="none"></path></svg></a>
+<a class="so" href="https://tiktok.com/@bilkenters" target="_blank" rel="noopener" aria-label="TikTok"><svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 2.4 C27.5 2 33.6 9 33.2 18.2 C32.8 27 26.5 33.6 17.6 33.4 C9 33.2 2.2 26.8 2.6 17.4 C3 9 10 2.8 18.5 2.4"></path><path d="M19 11v10.5a3.5 3.5 0 1 1-3.5-3.5"></path><path d="M19 11c.6 3 2.6 4.6 5.5 4.8"></path></svg></a>
+</div>
+</div>
+<div class="col"><h4 class="fh">Kampüs<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></h4>
+<a class="fl" href="https://www.bilkenters.com/yemekhane-menu">Yemekhane Menüsü</a><a class="fl" href="https://www.bilkenters.com/kafeteryalar">Kafeteryalar</a><a class="fl" href="https://www.bilkenters.com/yurtlar">Yurtlar</a><a class="fl" href="https://www.bilkenters.com/ulasim">Ulaşım &amp; Ring</a></div>
+<div class="col"><h4 class="fh">Akademik<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 3 C18 4.5 38 2 60 3.5 S86 4.5 98 2.5"></path></svg></h4>
+<a class="fl" href="https://www.bilkenters.com/note-calculator">Not Hesaplama</a><a class="fl" href="https://www.bilkenters.com/akademik-takvim">Akademik Takvim</a><a class="fl" href="https://www.bilkenters.com/scheduler">Ders Programı</a><a class="fl" href="https://www.bilkenters.com/hazirlik">Hazırlık</a></div>
+<div class="col"><h4 class="fh">Topluluk<svg viewBox="0 0 100 6" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3" stroke-linecap="round"><path d="M2 4 C20 2 40 4.5 60 3 S88 2 98 3.5"></path></svg></h4>
+<a class="fl" href="https://www.bilkenters.com/etkinlikler">Etkinlik Takvimi</a><a class="fl" href="https://www.bilkenters.com/kulupler">Kulüpler</a><a class="fl" href="/kutuphane">Kütüphane</a><a class="fl" href="https://www.bilkenters.com/firsatlar">Fırsatlar</a><a class="fl" href="https://www.bilkenters.com/contributors">Katkıda Bulunanlar</a><a class="fl" href="https://www.bilkenters.com/about">Hakkımızda</a></div>
+</div>
+<div class="fb"><span>© 2026 Bilkenters</span><a href="https://www.bilkenters.com/privacy">Gizlilik</a><a href="https://www.bilkenters.com/terms">Kullanım Şartları</a><span class="soul"><button class="fstamp" type="button" id="soul">MADE WITH <span class="h">♥</span> BY STUDENTS</button></span></div>
+</footer>
+<script src="/site/kutuphane/posts.js"></script><script src="/site/kutuphane/kutuphane.js"></script>
+<script>
+/* zaten giriş yapılmışsa üstteki buton doğrudan terminale götürür */
+fetch('/api/oturum',{cache:'no-store'}).then(r=>r.json()).then(j=>{if(!j.giris)return;document.querySelectorAll('[data-oturum]').forEach(a=>{a.href='/';a.textContent='Terminal →'})}).catch(()=>{});
+</script>
+</body></html>

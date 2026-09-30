@@ -1,0 +1,77 @@
+/* bilkenters — "the pinned paper board". Chrome is navy, artifacts are paper. */
+:root{
+  /* base: board (dark chrome) */
+  --bk-navy:#0D1322;
+  --bk-navy-2:#131B2E;
+  --bk-navy-deep:#0A1120;
+  --bk-scrim:rgba(6,10,20,.72);
+  --bk-cream:#E8E3D8;
+  --bk-cream-hi:#F6F1E6;
+  /* base: paper (artifacts) */
+  --bk-paper:#F2ECDC;
+  --bk-paper-hi:#FBF8F1;
+  --bk-kraft:#E9DFC6;
+  --bk-ink:#221E17;
+  --bk-ink-2:#3A332A;
+  --bk-pencil:#6E675C;
+  /* base: accents */
+  --bk-blue:#4C7DF0;
+  --bk-blue-hi:#6C95F5;
+  --bk-blue-ink:#2F5FD0;
+  --bk-amber:#D9A62E;
+  --bk-amber-hi:#F4C96A;
+  --bk-marker:rgba(255,222,0,.5);
+  --bk-fav:#C58A12;
+  --bk-fav-ring:#E0A02A;
+  --bk-today:#D0483A;
+  /* base: stamp scale (verdicts) */
+  --bk-stamp-green:#3E7A4E;
+  --bk-stamp-amber:#C99B2F;
+  --bk-stamp-orange:#C4622D;
+  --bk-stamp-red:#A94438;
+  /* base: tape */
+  --bk-tape-amber-a:rgba(217,164,65,.85);
+  --bk-tape-amber-b:rgba(236,196,120,.85);
+  --bk-tape-teal-a:rgba(95,143,138,.8);
+  --bk-tape-teal-b:rgba(140,180,175,.8);
+
+  /* semantic: surfaces */
+  --surface-board:var(--bk-navy);
+  --surface-board-elevated:var(--bk-navy-2);
+  --surface-paper:var(--bk-paper);
+  --surface-paper-hi:var(--bk-paper-hi);
+  --surface-kraft:var(--bk-kraft);
+  --surface-input:rgba(232,227,216,.06);
+  --surface-scrim:var(--bk-scrim);
+  /* semantic: text on board */
+  --text-on-board:var(--bk-cream);
+  --text-on-board-hi:var(--bk-cream-hi);
+  --text-on-board-muted:rgba(232,227,216,.72);
+  --text-on-board-faint:rgba(232,227,216,.55);
+  /* semantic: text on paper */
+  --text-ink:var(--bk-ink);
+  --text-ink-2:var(--bk-ink-2);
+  --text-pencil:var(--bk-pencil);
+  /* semantic: interactive */
+  --accent:var(--bk-blue);
+  --accent-hover:var(--bk-blue-hi);
+  --accent-pressed:var(--bk-blue-ink);
+  --highlight:var(--bk-amber);
+  --link-on-board:var(--bk-amber);
+  --link-on-board-hover:var(--bk-amber-hi);
+  --link-on-paper:var(--bk-ink-2);
+  /* semantic: borders */
+  --border-on-board:rgba(232,227,216,.14);
+  --border-on-board-strong:rgba(232,227,216,.35);
+  --border-on-paper:rgba(34,30,23,.14);
+  --border-on-paper-strong:rgba(34,30,23,.32);
+  --leader-dots:rgba(34,30,23,.32);
+  /* semantic: status */
+  --status-good:var(--bk-stamp-green);
+  --status-ok:var(--bk-stamp-amber);
+  --status-meh:var(--bk-stamp-orange);
+  --status-bad:var(--bk-stamp-red);
+  --status-open:var(--bk-amber);
+  --status-closed:#C25A4C;
+  --sticker-vegan:var(--bk-stamp-green);
+}

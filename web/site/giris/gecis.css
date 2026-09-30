@@ -1,0 +1,65 @@
+/* Giriş başarılı geçişi: zarf uçar → üye kartı basılır → terminal şeridi yazar → ekranı kaplar → "/" */
+.gate{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px 16px;box-sizing:border-box;overflow:hidden;background:rgba(6,10,20,0);transition:background .5s ease}
+.gate.on{background:rgba(6,10,20,.84)}
+.gate-in{display:flex;flex-direction:column;align-items:center;gap:28px;width:min(440px,100%)}
+
+/* üye kartı */
+.kart{--rot:-1.4deg;width:100%;box-sizing:border-box;padding:26px 28px 22px;border-radius:var(--radius-paper-c);box-shadow:var(--shadow-modal);opacity:0}
+.gate.on .kart{animation:kart-in .64s var(--ease-settle) both}
+.gate.on .kart.thud{animation:kart-thud .32s var(--ease-press) both}
+.gate.on.leave .kart{animation:kart-out .42s cubic-bezier(.5,0,.9,.5) both}
+@keyframes kart-in{0%{opacity:0;transform:translateY(-70px) rotate(-8deg) scale(.95)}60%{opacity:1;transform:translateY(6px) rotate(-.4deg) scale(1)}100%{opacity:1;transform:translateY(0) rotate(var(--rot))}}
+@keyframes kart-thud{0%{opacity:1;transform:rotate(var(--rot))}35%{opacity:1;transform:translateY(3px) rotate(var(--rot)) scale(.988)}100%{opacity:1;transform:rotate(var(--rot))}}
+@keyframes kart-out{from{opacity:1;transform:rotate(var(--rot))}to{opacity:0;transform:translateY(-46px) rotate(-5deg) scale(.96)}}
+.kart .tape.top{width:70px;margin-left:-35px}
+.kart .tape.k2{width:54px;height:18px;right:-14px;bottom:18px;transform:rotate(-58deg)}
+
+.k-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:2px solid var(--bk-ink-2)}
+.k-brand{display:flex;align-items:center;gap:7px;font:800 16px/1 var(--font-display);letter-spacing:-.02em;color:var(--bk-ink)}
+.k-brand img{width:20px;height:20px;filter:brightness(0);opacity:.86}
+.k-no{font:700 10px/1 var(--font-body);letter-spacing:.14em;color:var(--bk-pencil);white-space:nowrap}
+.k-no b{font-variant-numeric:tabular-nums;color:var(--bk-ink-2)}
+.kart .eb{margin-top:18px}
+
+/* isim elle yazılır, altı marker ile çizilir */
+.k-name{position:relative;display:inline-block;margin:4px 0 14px;font:600 60px/1 var(--font-hand);color:var(--bk-ink)}
+.k-name span{display:inline-block;padding:0 6px 0 2px;clip-path:inset(-20% 100% -20% -4%)}
+.gate.on .k-name span{animation:k-write .85s cubic-bezier(.45,.1,.35,1) .42s both}
+@keyframes k-write{to{clip-path:inset(-20% -4% -20% -4%)}}
+.k-name svg{position:absolute;left:-4px;bottom:-4px;width:calc(100% + 8px);height:9px}
+.k-name svg path{stroke-dasharray:130;stroke-dashoffset:130}
+.gate.on .k-name svg path{animation:bk-draw var(--dur-draw) var(--ease-draw) 1.12s both}
+
+.k-row{display:flex;align-items:baseline;gap:8px;padding:8px 0 5px;border-bottom:1px dashed var(--border-on-paper);font:500 13px/1.2 var(--font-body);color:var(--bk-pencil);opacity:0}
+.k-row:last-child{border-bottom:0}
+.k-row b{font:600 18px/1 var(--font-hand);color:var(--bk-ink-2);white-space:nowrap}
+.k-row .ld{flex:1;min-width:10px;border-bottom:2px dotted var(--leader-dots);transform:translateY(-4px)}
+.gate.on .k-row{animation:bk-view-in .3s var(--ease-settle) both;animation-delay:calc(1.05s + var(--i)*90ms)}
+
+/* damga: yukarıdan iner, kart sarsılır */
+.kart .k-stamp{position:absolute;right:22px;top:78px;--rot:-11deg;padding:9px 13px 8px;border-width:3px;font-size:24px;letter-spacing:.04em;opacity:0;animation:none;z-index:4}
+.gate.slam .k-stamp{animation:k-slam .44s var(--ease-press) both}
+@keyframes k-slam{0%{opacity:0;transform:scale(2.4) rotate(-3deg)}55%{opacity:.95;transform:scale(.92) rotate(var(--rot))}78%{transform:scale(1.04) rotate(var(--rot))}100%{opacity:.92;transform:scale(1) rotate(var(--rot))}}
+.k-hand{margin:14px 0 0;font:600 21px/1.15 var(--font-hand);color:var(--bk-blue-ink);transform:rotate(-1.5deg);opacity:0;transition:opacity .35s ease,transform .35s var(--ease-settle)}
+.gate.greet .k-hand{opacity:1;transform:rotate(-1.5deg) translateY(-2px)}
+
+/* terminal şeridi */
+.tty{width:100%;box-sizing:border-box;padding:12px 16px 14px;background:#0B0F17;color:var(--bk-cream);border:1px solid var(--border-on-board-strong);border-radius:6px;box-shadow:0 18px 40px -18px rgba(0,0,0,.9);opacity:0;transform:translateY(10px);transition:opacity .3s ease,transform .3s var(--ease-settle)}
+.gate.tty-on .tty{opacity:1;transform:none}
+.tty-dots{display:flex;gap:6px;margin-bottom:10px;transition:opacity .2s}
+.tty-dots i{width:8px;height:8px;border-radius:50%;background:var(--bk-stamp-red)}.tty-dots i+i{background:var(--bk-stamp-amber)}.tty-dots i+i+i{background:var(--bk-stamp-green)}
+.tty pre{margin:0;min-height:4.65em;font:500 13.5px/1.55 ui-monospace,"SF Mono",Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all}
+.tty .u{color:var(--bk-amber)}.tty .d{color:var(--bk-blue-hi)}.tty .ok{color:#7FC08F}.tty .m{color:var(--text-on-board-faint)}
+.tty .cur{display:inline-block;width:.6em;height:1.1em;margin-left:1px;background:var(--bk-cream);vertical-align:-.18em;animation:k-blink 1s steps(1) infinite}
+@keyframes k-blink{50%{opacity:0}}
+/* son adım: şerit ekranı kaplar ve ttyd'nin zeminine (#2b2b2b) karışır */
+.tty.full{position:fixed;z-index:60;margin:0;transform:none;transition:top .55s var(--ease-settle),left .55s var(--ease-settle),width .55s var(--ease-settle),height .55s var(--ease-settle),border-radius .55s,background .55s,border-color .55s}
+.tty.full.grow{border-radius:0;border-color:transparent;background:#2b2b2b;box-shadow:none}
+.tty.full.grow .tty-dots{opacity:0}
+
+.skip{margin:-10px 0 0;font:var(--type-hand-sm);color:var(--text-on-board-faint);opacity:0;transition:opacity .4s ease .8s}
+.gate.on .skip{opacity:1}
+.gate.leave .skip{opacity:0;transition-delay:0s}
+
+@media (max-width:520px){.kart{padding:24px 20px 20px}.k-name{font-size:50px}.kart .k-stamp{font-size:19px;right:14px;top:84px}.k-row b{font-size:16px}}
+@media (prefers-reduced-motion:reduce){.k-name span{clip-path:none}.k-name svg path{stroke-dashoffset:0}.k-row,.kart,.kart .k-stamp{opacity:1}.tty .cur{animation:none}}

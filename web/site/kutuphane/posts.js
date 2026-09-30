@@ -1,0 +1,91 @@
+window.KUTUPHANE_POSTS=[
+{slug:"linux-dosya-sistemi",cat:"linux",no:"LNX 001",title:"Terminale ilk adım: Linux dosya sistemi",sub:"/ altında ne var, nereye ne yazılır",date:"2026-09-02",dateTr:"2 Eylül 2026",min:6,author:"emre.k",h:292,paper:"paper",body:[
+{t:"p",x:"Linux'ta her şey tek bir ağaçtan dallanır: kök dizin <code>/</code>. Windows'taki C: ve D: gibi ayrı sürücüler yoktur; diskler de bu ağacın bir dalına bağlanır (mount edilir). İlk günlerde kaybolmanın en büyük sebebi bu dizinlerin ne işe yaradığını bilmemektir."},
+{t:"h",x:"Bilmen gereken dizinler"},
+{t:"dl",x:[["/home","kullanıcı klasörleri. Senin dosyaların /home/kullanici altında."],["/etc","sistem ve servis ayar dosyaları. Elle düzenlediğin neredeyse her şey burada."],["/var","sürekli değişen veriler: log'lar (/var/log), veritabanı dosyaları, web kökü."],["/usr","kurulu programlar ve kütüphaneler. Kendin dokunma."],["/tmp","geçici dosyalar; yeniden başlatınca silinebilir."],["/opt","paket yöneticisi dışından kurulan üçüncü parti yazılımlar."]]},
+{t:"h",x:"Dolaşmak için üç komut"},
+{t:"code",lang:"bash",x:"pwd            # neredeyim?\nls -la         # buradaki her şeyi, gizliler dahil, ayrıntılı listele\ncd /var/log    # log dizinine git\ncd -           # bir önceki dizine dön\ncd ~           # eve dön"},
+{t:"p",x:"<code>ls -la</code> çıktısındaki ilk sütun izinlerdir: <code>drwxr-xr-x</code>. Baştaki <code>d</code> dizin demek; sonraki üçlüler sırasıyla sahip, grup ve diğerleri için okuma-yazma-çalıştırma izinleri."},
+{t:"code",lang:"bash",x:"chmod 644 notlar.txt     # sahip okur-yazar, diğerleri sadece okur\nchmod +x kur.sh          # çalıştırılabilir yap\nchown emre:emre rapor/   # sahibini değiştir"},
+{t:"note",x:"sudo rm -rf / yazdığın anda hayatın değişir. Yazma."},
+{t:"h",x:"Dosya bulmak"},
+{t:"code",lang:"bash",x:"find /etc -name \"*.conf\"        # isme göre ara\ngrep -rn \"ListenAddress\" /etc/ssh  # içeriğe göre ara, satır numarasıyla\ndu -sh /var/log/*               # hangi log ne kadar yer tutuyor"},
+{t:"p",x:"Bu kadarıyla bir Linux makinede kaybolmazsın. Sıradaki yazıda Ubuntu'da paket kurmayı ve <code>apt</code>'ı anlatıyoruz."}
+]},
+{slug:"ubuntu-apt",cat:"ubuntu",no:"UBN 014",title:"Ubuntu'da paket yönetimi: apt",sub:"kur, güncelle, temizle — ezberlemen gereken 12 satır",date:"2026-09-06",dateTr:"6 Eylül 2026",min:5,author:"zeynep.a",h:262,paper:"kraft",body:[
+{t:"p",x:"Ubuntu'da yazılım kurmak için indirip çift tıklamazsın; paket yöneticisine söylersin. <code>apt</code>, Debian tabanlı sistemlerin paket yöneticisidir ve depolardan imzalı paketler indirir. Bağımlılıkları kendisi çözer."},
+{t:"h",x:"Günlük rutin"},
+{t:"code",lang:"bash",x:"sudo apt update              # paket listesini yenile (kurmaz, sadece öğrenir)\nsudo apt upgrade             # kurulu paketleri güncelle\nsudo apt install htop curl   # birden fazla paket aynı satırda\nsudo apt remove htop         # kaldır, ayarları bırak\nsudo apt purge htop          # kaldır, ayarları da sil\nsudo apt autoremove          # artık kimsenin kullanmadığı bağımlılıkları temizle"},
+{t:"p",x:"<code>update</code> ile <code>upgrade</code> farkı en çok karıştırılan şey: ilki sadece \"ne var ne yok\" listesini çeker, ikincisi gerçekten günceller. Her zaman sırayla ikisini çalıştır."},
+{t:"h",x:"Aramak ve incelemek"},
+{t:"code",lang:"bash",x:"apt search nginx             # depoda ara\napt show nginx               # sürüm, boyut, açıklama\napt list --installed | wc -l # kaç paket kurulu?\napt list --upgradable        # neler güncellenebilir?"},
+{t:"h",x:"Depo eklemek"},
+{t:"p",x:"Bazı yazılımlar Ubuntu depolarında yoktur ya da eskidir. Üreticinin deposunu eklersin; anahtarını da mutlaka eklemelisin, yoksa apt imzayı doğrulayamaz."},
+{t:"code",lang:"bash",x:"curl -fsSL https://ornek.dev/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/ornek.gpg\necho \"deb [signed-by=/usr/share/keyrings/ornek.gpg] https://ornek.dev/apt stable main\" | sudo tee /etc/apt/sources.list.d/ornek.list\nsudo apt update"},
+{t:"note",x:"add-apt-repository ppa:... hâlâ çalışır ama sunucuda PPA'dan uzak dur."},
+{t:"ul",x:["<b>E: Could not get lock</b> — başka bir apt çalışıyor (çoğu zaman otomatik güncelleme). Bir dakika bekle.","<b>Unable to locate package</b> — önce <code>apt update</code> çalıştırdın mı?","<b>Held packages</b> — <code>apt-mark showhold</code> ile bak, gerekiyorsa <code>unhold</code>."]}
+]},
+{slug:"zabbix-server-kurulum",cat:"zabbix",no:"ZBX 007",title:"Zabbix Server kurulumu",sub:"Ubuntu 22.04 üzerinde, sıfırdan çalışan panele 20 dakika",date:"2026-09-11",dateTr:"11 Eylül 2026",min:9,author:"emre.k",h:304,paper:"paper",featured:true,body:[
+{t:"p",x:"Zabbix, sunucularını ve ağ cihazlarını izlemek için kullanılan açık kaynak bir izleme sistemidir. CPU, disk, servis durumu, ping — hepsini toplar, eşik aşılınca uyarır. Bu yazıda tek bir Ubuntu 22.04 makinesine Zabbix Server 7.0 LTS, PostgreSQL ve Nginx ile kuruyoruz."},
+{t:"h",x:"1 · Zabbix deposunu ekle"},
+{t:"code",lang:"bash",x:"wget https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest_7.0+ubuntu22.04_all.deb\nsudo dpkg -i zabbix-release_latest_7.0+ubuntu22.04_all.deb\nsudo apt update"},
+{t:"h",x:"2 · Paketleri kur"},
+{t:"code",lang:"bash",x:"sudo apt install zabbix-server-pgsql zabbix-frontend-php php8.1-pgsql \\\n  zabbix-nginx-conf zabbix-sql-scripts zabbix-agent postgresql"},
+{t:"h",x:"3 · Veritabanını hazırla"},
+{t:"code",lang:"bash",x:"sudo -u postgres createuser --pwprompt zabbix\nsudo -u postgres createdb -O zabbix zabbix\nzcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | sudo -u zabbix psql zabbix"},
+{t:"p",x:"Şifreyi bir yere yaz; bir sonraki adımda <code>/etc/zabbix/zabbix_server.conf</code> içine gireceksin."},
+{t:"code",lang:"ini",x:"# /etc/zabbix/zabbix_server.conf\nDBPassword=buraya_sifre"},
+{t:"h",x:"4 · Nginx ve PHP"},
+{t:"code",lang:"nginx",x:"# /etc/zabbix/nginx.conf — iki satırın başındaki # işaretini kaldır\nlisten 8080;\nserver_name example.com;"},
+{t:"h",x:"5 · Servisleri başlat"},
+{t:"code",lang:"bash",x:"sudo systemctl restart zabbix-server zabbix-agent nginx php8.1-fpm\nsudo systemctl enable zabbix-server zabbix-agent nginx php8.1-fpm\nsudo systemctl status zabbix-server --no-pager"},
+{t:"p",x:"Tarayıcıdan <code>http://sunucu-ip:8080</code> adresine git. Kurulum sihirbazı veritabanı bilgilerini ister, sonra panel açılır. Varsayılan giriş: <b>Admin</b> / <b>zabbix</b>."},
+{t:"note",x:"ilk yaptığın şey Admin şifresini değiştirmek olsun. ikinci şey saat dilimi: Europe/Istanbul."},
+{t:"h",x:"Çalışmadıysa"},
+{t:"ul",x:["<code>tail -f /var/log/zabbix/zabbix_server.log</code> — server neye takılmış, ilk bakılacak yer.","Veritabanına bağlanamıyorsa <code>DBPassword</code> satırını ve PostgreSQL'in ayakta olduğunu (<code>systemctl status postgresql</code>) kontrol et.","Panel açılmıyorsa 8080 portunu güvenlik duvarında aç: <code>sudo ufw allow 8080/tcp</code>."]},
+{t:"p",x:"Server ayakta. Sıradaki yazıda ilk host'u ekleyip agent bağlıyoruz."}
+]},
+{slug:"zabbix-agent-host",cat:"zabbix",no:"ZBX 008",title:"Zabbix: agent kur, ilk host'u ekle",sub:"izlenen makineden server'a veri akıtmak",date:"2026-09-15",dateTr:"15 Eylül 2026",min:6,author:"zeynep.a",h:272,paper:"hi",body:[
+{t:"p",x:"Server tek başına hiçbir şey izlemez; izlenecek makinelerde <b>agent</b> çalışır ve server'a metrik gönderir. Zabbix 7 ile birlikte gelen <code>zabbix-agent2</code> daha modern; yeni kurulumda onu seç."},
+{t:"h",x:"İzlenen makinede"},
+{t:"code",lang:"bash",x:"sudo apt install zabbix-agent2\nsudo nano /etc/zabbix/zabbix_agent2.conf"},
+{t:"code",lang:"ini",x:"Server=10.0.0.5          # Zabbix server'ın IP'si (pasif kontroller)\nServerActive=10.0.0.5    # aktif kontroller için de aynı\nHostname=web-01          # panelde yazacağın isimle birebir aynı olmalı"},
+{t:"code",lang:"bash",x:"sudo systemctl enable --now zabbix-agent2\nsudo ufw allow from 10.0.0.5 to any port 10050 proto tcp"},
+{t:"h",x:"Panelde"},
+{t:"ol",x:["<b>Data collection → Hosts → Create host</b>","Host name: <code>web-01</code> (agent'taki Hostname ile aynı)","Templates: <i>Linux by Zabbix agent</i>","Host groups: <i>Linux servers</i>","Interfaces → Add → Agent → makinenin IP'si, port 10050","<b>Add</b>. Bir-iki dakika içinde Availability sütunundaki ZBX yeşile döner."]},
+{t:"note",x:"yeşil olmadıysa: %90 Hostname uyuşmuyor, %9 güvenlik duvarı, %1 başka bir şey."},
+{t:"h",x:"Server'dan elle test"},
+{t:"code",lang:"bash",x:"zabbix_get -s 10.0.0.21 -k system.uptime\nzabbix_get -s 10.0.0.21 -k agent.ping   # 1 dönerse bağlantı tamam"},
+{t:"p",x:"Şablon (template) bağlandığında CPU, bellek, disk, ağ ve servis kontrolleri otomatik gelir. <b>Monitoring → Latest data</b> altında ilk verileri gör, sonra <b>Dashboards</b>'a bir grafik ekle."}
+]},
+{slug:"systemd-servisler",cat:"linux",no:"LNX 002",title:"systemd ile servis yönetimi",sub:"başlat, durdur, otomatik başlat, log'una bak",date:"2026-09-19",dateTr:"19 Eylül 2026",min:5,author:"emre.k",h:250,paper:"kraft",body:[
+{t:"p",x:"Modern Linux dağıtımlarında servisleri <code>systemd</code> yönetir. Nginx, PostgreSQL, Zabbix, SSH — hepsi birer <i>unit</i>. Tek komut ailesi öğreniyorsun, hepsine uyguluyorsun: <code>systemctl</code>."},
+{t:"code",lang:"bash",x:"systemctl status nginx        # ayakta mı, ne zamandan beri, son log satırları\nsudo systemctl start nginx\nsudo systemctl stop nginx\nsudo systemctl restart nginx  # tamamen kapat-aç\nsudo systemctl reload nginx   # ayarları yeniden oku, bağlantıları kesme"},
+{t:"h",x:"Açılışta başlasın mı?"},
+{t:"code",lang:"bash",x:"sudo systemctl enable nginx       # açılışta başlat\nsudo systemctl disable nginx      # başlatma\nsudo systemctl enable --now nginx # hem etkinleştir hem şimdi başlat\nsystemctl is-enabled nginx"},
+{t:"h",x:"Log okumak"},
+{t:"p",x:"<code>journalctl</code> tüm unit'lerin log'unu tek yerden okur. Dosya aramak yok."},
+{t:"code",lang:"bash",x:"journalctl -u zabbix-server -f          # canlı izle\njournalctl -u nginx --since \"1 hour ago\"\njournalctl -p err -b                     # bu açılıştaki tüm hatalar\njournalctl --disk-usage"},
+{t:"h",x:"Kendi servisini yaz"},
+{t:"code",lang:"ini",x:"# /etc/systemd/system/bot.service\n[Unit]\nDescription=Kampus bildirim botu\nAfter=network.target\n\n[Service]\nUser=bot\nWorkingDirectory=/opt/bot\nExecStart=/usr/bin/python3 main.py\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target"},
+{t:"code",lang:"bash",x:"sudo systemctl daemon-reload      # yeni dosyayı tanıt\nsudo systemctl enable --now bot"},
+{t:"note",x:"unit dosyasını her değiştirdiğinde daemon-reload. unutulan şey hep bu."}
+]},
+{slug:"ssh-anahtar",cat:"ag",no:"NET 021",title:"SSH: şifreyi bırak, anahtara geç",sub:"anahtar üret, sunucuya taşı, config ile kısayol",date:"2026-09-24",dateTr:"24 Eylül 2026",min:5,author:"zeynep.a",h:282,paper:"paper",body:[
+{t:"p",x:"Sunucuya her girişte şifre yazmak hem yorucu hem güvensiz. SSH anahtarı bir çift dosyadır: <b>özel</b> anahtar sende kalır, <b>açık</b> anahtar sunucuya gider. Sunucu açık anahtarla sana bir bilmece sorar, sadece özel anahtar çözer."},
+{t:"h",x:"1 · Anahtar üret"},
+{t:"code",lang:"bash",x:"ssh-keygen -t ed25519 -C \"emre@laptop\"\n# Enter, Enter (parola koymak istersen koy — önerilir)\nls ~/.ssh/\n# id_ed25519      ← özel, kimseye verme\n# id_ed25519.pub  ← açık, sunucuya bu gidecek"},
+{t:"h",x:"2 · Sunucuya kopyala"},
+{t:"code",lang:"bash",x:"ssh-copy-id emre@10.0.0.5\n# ssh-copy-id yoksa:\ncat ~/.ssh/id_ed25519.pub | ssh emre@10.0.0.5 \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys\""},
+{t:"h",x:"3 · Kısayol tanımla"},
+{t:"code",lang:"ini",x:"# ~/.ssh/config\nHost zbx\n    HostName 10.0.0.5\n    User emre\n    IdentityFile ~/.ssh/id_ed25519\n\nHost web-*\n    User deploy\n    Port 2222"},
+{t:"p",x:"Artık <code>ssh zbx</code> yeter. <code>scp dosya zbx:/tmp/</code> de aynı kısayolu kullanır."},
+{t:"h",x:"4 · Şifreyle girişi kapat"},
+{t:"p",x:"Anahtarla girebildiğini <b>bir kez doğruladıktan sonra</b> sunucuda şifreli girişi kapat. Önce test et, sonra kapat; tersini yaparsan dışarıda kalırsın."},
+{t:"code",lang:"ini",x:"# /etc/ssh/sshd_config\nPasswordAuthentication no\nPermitRootLogin no"},
+{t:"code",lang:"bash",x:"sudo sshd -t && sudo systemctl reload ssh"},
+{t:"note",x:"reload'dan önce ikinci bir terminalde açık oturum tut. sigorta."}
+]}
+];
+window.KUTUPHANE_CATS={all:"Tümü",linux:"Linux",ubuntu:"Ubuntu",zabbix:"Zabbix",ag:"Ağ"};
+window.KUTUPHANE_LOCKED=[{no:"LNX 003",title:"Bash script'e giriş",h:258,paper:"kraft"},{no:"ZBX 009",title:"Zabbix: trigger ve e-posta uyarısı",h:288,paper:"paper"},{no:"NET 022",title:"Nginx reverse proxy",h:246,paper:"hi"},{no:"UBN 015",title:"Docker'a ilk adım",h:270,paper:"paper"}];

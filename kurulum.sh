@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Web terminal kurulumu: ttyd + tmux + Caddy (HTTPS + şifre) + Claude Code
+# Web terminal kurulumu: ttyd + tmux + Caddy (HTTPS) + bilkenters giriş sayfası + Claude Code
 # Ubuntu 22.04/24.04 veya Debian 12 üzerinde root olarak çalıştır:
 #   curl -fsSLo k URL; bash k
 # İsteğe bağlı: DOMAIN=ornek.com DEV_USER=ben bash k
@@ -12,7 +12,6 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 DEV_USER="${DEV_USER:-arda}"
-WEB_USER="$DEV_USER"
 
 # Şifre script'e gömülmez; kurulum sırasında sorulur
 if [[ -z "${WEB_PASS:-}" ]]; then
@@ -64,6 +63,16 @@ chown "$DEV_USER:$DEV_USER" "/home/$DEV_USER/.tmux.conf"
 
 # Web dosyaları: /test, /yedek, görsel yapıştırma scripti, xterm.js
 mkdir -p /var/www/kutuphane/static/vendor
+# Vitrin (/kutuphane) ve giriş (/giris) sayfaları — bilkenters tasarımı
+SITE_FILES="index.html giris.html styles.css assets/logo.png
+  tokens/fonts.css tokens/colors.css tokens/typography.css tokens/spacing.css
+  tokens/effects.css tokens/motion.css tokens/base.css
+  kutuphane/kutuphane.css kutuphane/kutuphane.js kutuphane/posts.js
+  giris/giris.css giris/gecis.css giris/giris.js"
+for f in $SITE_FILES; do
+  mkdir -p "/var/www/kutuphane/site/$(dirname "$f")"
+  fetch "web/site/$f" "/var/www/kutuphane/site/$f"
+done
 fetch web/test.html /var/www/kutuphane/test.html
 fetch web/yedek.html /var/www/kutuphane/yedek.html
 fetch web/static/kutuphane.js /var/www/kutuphane/static/kutuphane.js
@@ -72,9 +81,12 @@ curl -fsSL -o /var/www/kutuphane/static/vendor/xterm.js "$XTERM/@xterm/xterm@5.5
 curl -fsSL -o /var/www/kutuphane/static/vendor/xterm.css "$XTERM/@xterm/xterm@5.5.0/css/xterm.css"
 curl -fsSL -o /var/www/kutuphane/static/vendor/addon-fit.js "$XTERM/@xterm/addon-fit@0.10.0/lib/addon-fit.js"
 
-echo "==> kutuphane-api (WebSocket'siz yedek mod + gorsel yukleme)"
+echo "==> kutuphane-api (giris/oturum + WebSocket'siz yedek mod + gorsel yukleme)"
 mkdir -p /opt/kutuphane
 fetch server/kutuphane_api.py /opt/kutuphane/kutuphane_api.py
+# Giriş şifresi: scrypt özeti + oturum imza anahtarı, sadece API kullanıcısı okuyabilir
+install -d -o "$DEV_USER" -g "$DEV_USER" -m 700 /etc/kutuphane
+printf '%s' "$WEB_PASS" | sudo -u "$DEV_USER" python3 /opt/kutuphane/kutuphane_api.py --sifre-ayarla "$DEV_USER"
 cat >/etc/systemd/system/kutuphane-api.service <<EOF
 [Unit]
 Description=kutuphane API (HTTP terminal + upload)
@@ -134,7 +146,6 @@ if ! command -v caddy &>/dev/null; then
   apt-get install -y caddy
 fi
 
-HASH="$(caddy hash-password --plaintext "$WEB_PASS")"
 mkdir -p /var/log/caddy
 chown caddy:caddy /var/log/caddy
 cat >/etc/caddy/Caddyfile <<EOF
@@ -143,33 +154,57 @@ $DOMAIN {
 		output file /var/log/caddy/access.log
 		format json
 	}
-	basic_auth {
-		$WEB_USER $HASH
+	# Herkese açık: vitrin, giriş sayfası ve giriş API'si
+	handle /site/* {
+		root * /var/www/kutuphane
+		file_server
 	}
-	handle /api/* {
+	handle /kutuphane {
+		root * /var/www/kutuphane
+		rewrite * /site/index.html
+		file_server
+	}
+	handle /giris {
+		root * /var/www/kutuphane
+		rewrite * /site/giris.html
+		file_server
+	}
+	@herkes path /api/giris /api/oturum
+	handle @herkes {
 		reverse_proxy 127.0.0.1:7682
 	}
-	handle /static/* {
-		root * /var/www/kutuphane
-		file_server
-	}
-	handle /test {
-		root * /var/www/kutuphane
-		rewrite * /test.html
-		file_server
-	}
-	handle /yedek {
-		root * /var/www/kutuphane
-		rewrite * /yedek.html
-		file_server
-	}
+	# Geri kalan her şey oturum ister; yoksa sayfalar /kutuphane'ye yönlenir
 	handle {
-		reverse_proxy 127.0.0.1:7681
+		forward_auth 127.0.0.1:7682 {
+			uri /api/yetki
+			header_up -Upgrade
+			header_up -Connection
+		}
+		handle /api/* {
+			reverse_proxy 127.0.0.1:7682
+		}
+		handle /static/* {
+			root * /var/www/kutuphane
+			file_server
+		}
+		handle /test {
+			root * /var/www/kutuphane
+			rewrite * /test.html
+			file_server
+		}
+		handle /yedek {
+			root * /var/www/kutuphane
+			rewrite * /yedek.html
+			file_server
+		}
+		handle {
+			reverse_proxy 127.0.0.1:7681
+		}
 	}
 }
 EOF
 
-echo "==> fail2ban (10 hatali giris = 1 saat ban)"
+echo "==> fail2ban (10 hatali giris = 1 saat ban; /api/giris hatalari 401 olarak loglanir)"
 apt-get install -y fail2ban
 cat >/etc/fail2ban/filter.d/caddy-auth.conf <<'EOF'
 [Definition]
@@ -203,6 +238,7 @@ fi
 
 systemctl daemon-reload
 systemctl enable --now ttyd kutuphane-api
+systemctl restart kutuphane-api  # yeniden kurulumda yeni API kodu yüklensin
 systemctl restart caddy
 systemctl enable fail2ban
 systemctl restart fail2ban
@@ -210,5 +246,6 @@ systemctl restart fail2ban
 echo
 echo "================ KURULUM TAMAM ================"
 echo "Adres:     https://$DOMAIN"
-echo "Kullanici: $WEB_USER  (sudo sifresi de ayni)"
+echo "Giris:     https://$DOMAIN/giris"
+echo "Kullanici: $DEV_USER  (sudo sifresi de ayni)"
 echo "Terminalde: claude"

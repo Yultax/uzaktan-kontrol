@@ -1,0 +1,96 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Giriş — bilkenters</title><link rel="icon" type="image/png" href="/site/assets/logo.png"><link rel="stylesheet" href="/site/styles.css"><link rel="stylesheet" href="/site/giris/giris.css"><link rel="stylesheet" href="/site/giris/gecis.css"></head>
+<body class="bk-board">
+<header class="topbar">
+<a class="brand" href="/kutuphane"><img src="/site/assets/logo.png" alt=""><span class="wm">bilkenters<svg viewBox="0 0 100 7" preserveAspectRatio="none" fill="none" stroke="#4C7DF0" stroke-width="1.7" stroke-linecap="round"><path d="M1 4.5 C12 2 20 6 32 3.5 S52 1.5 64 4 S82 5.5 99 2.5"></path></svg></span></a>
+<div class="tr"><a class="back" href="/kutuphane" data-en="← home">← ana sayfa</a><button class="lang" id="lang" type="button" aria-label="Switch language">EN</button></div>
+</header>
+
+<div class="doodle" style="--rot:6deg;right:6%;top:96px"><span class="tape"></span><svg width="86" height="58" viewBox="0 0 86 58"><path d="M4 6 C30 4 58 5 82 6 L81 52 C55 54 28 53 5 52 Z"></path><path d="M5 7 L43 34 L81 7"></path><path d="M5 52 L33 27"></path><path d="M81 52 L53 27"></path></svg></div>
+
+<main class="stage">
+<aside class="intro" data-screen-label="sol taraf">
+<h1 class="big">bilkenters</h1>
+<p class="warm" data-en="The campus toolkit, in one place. Write your letter, come on in.">Kampüsün araçları tek yerde. Mektubunu yaz, içeri gir.</p>
+<div class="collage" aria-hidden="true">
+<article class="art paper kraft a-menu"><span class="tape top" style="width:56px;margin-left:-28px"></span><p class="eb">YEMEKHANE</p><h4>Pazartesi</h4><div class="row">Mercimek çorbası<span class="ld"></span><span class="sc">4.1★</span></div><div class="row">Tavuk sote<span class="ld"></span><span class="sc">3.6★</span></div><div class="row">Sütlaç<span class="ld"></span><span class="sc">4.4★</span></div><span class="hand">bugünkü tabak?</span></article>
+<article class="art paper hi a-gpa"><span class="tape tl teal" style="width:58px"></span><p class="eb">GPA</p><p class="num">3.42<small>/ 4.00</small></p><span class="hand">finalden 71 lazım</span></article>
+<article class="art paper a-rev"><span class="tape tr" style="width:56px"></span><p class="eb">DERS YORUMU</p><h4>CS 201</h4><span class="sc"><b>4.6★</b> · 38 yorum</span><span class="hand">hoca çok iyi anlatıyor</span></article>
+<div class="a-club"><span class="string"></span><div class="disc"><span>KULÜPLER</span><b>80+</b><i>katıl →</i></div></div>
+<div class="trust paper hi"><span class="tape"></span><span class="sticker" data-en="Bilkent e-mail only">SADECE BİLKENT MAİLİ İLE</span></div>
+<p class="hand on-board members"><u>500+</u> üye · hepsi Bilkentli</p>
+</div>
+</aside>
+
+<section class="desk" data-screen-label="mektup">
+<p class="bnote" style="left:-120px;top:-6px" data-en="start here">buradan başla<svg viewBox="0 0 56 30"><path d="M3 4 C18 4 34 8 52 22"></path><path d="M44 22 L53 23 L51 14"></path></svg></p>
+<div class="letter-wrap" id="lw">
+<article class="letter paper" id="letter">
+<span class="tape top"></span>
+<div class="tabs" role="tablist"><button class="tab" role="tab" id="tabLogin" aria-selected="true" aria-controls="fLogin" type="button" data-en="Sign in">Giriş</button><button class="tab" role="tab" id="tabReg" aria-selected="false" aria-controls="fReg" type="button" data-en="Sign up">Kayıt</button></div>
+<div class="pm" aria-hidden="true"><span>BİLKENT · ANKARA</span><i></i><b id="pmDate">16.09.2026</b><i></i><span>POSTA</span></div>
+
+<form id="fLogin" novalidate autocomplete="on">
+<p class="eb" data-en="SIGN IN">GİRİŞ</p>
+<h2 class="ttl" data-en="Hello again,">Tekrar merhaba,</h2>
+<span class="sub" data-en="fill in the blanks, send it off">boşlukları doldur, gönder</span>
+<svg class="rule" viewBox="0 0 300 6" preserveAspectRatio="none" fill="none" stroke="#221E17" stroke-width="1.7" stroke-linecap="round"><path d="M2 3.5 C40 1.5 70 5 120 3 S200 1.5 298 3.5"></path></svg>
+<label class="fld" id="lUser"><span class="cap"><span data-en="Username">Kullanıcı adı</span></span><input type="text" name="username" id="loginUser" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="64"><i class="pen"></i></label>
+<div class="note" id="nLoginUser" hidden></div>
+<label class="fld pw" id="lPass"><span class="cap"><span data-en="Password">Şifre</span></span><input type="password" name="password" id="loginPass" autocomplete="current-password" maxlength="256"><button class="eye" type="button" data-eye="loginPass" data-en="show">göster</button><i class="pen"></i></label>
+<div class="note" id="nLoginPass" hidden></div>
+<div class="note" id="nLoginForm" hidden></div>
+<div class="foot"><button class="plink" type="button" id="btnForgot" data-en="forgot my password →">şifremi unuttum →</button><button class="send" type="submit" id="sendLogin"><span class="t" data-en="SEND">GÖNDER</span><span class="arr">→</span><span class="spin"></span></button></div>
+<p class="swap"><span data-en="No account yet?">Hesabın yok mu?</span> <button type="button" data-go="reg" data-en="write an application →">başvuru yaz →</button></p>
+</form>
+
+<form id="fReg" novalidate autocomplete="on" hidden>
+<p class="eb" data-en="APPLICATION">BAŞVURU</p>
+<h2 class="ttl" data-en="Welcome aboard,">Aramıza hoş geldin,</h2>
+<span class="sub" data-en="a Bilkent e-mail is enough">bir Bilkent maili yeter</span>
+<svg class="rule" viewBox="0 0 300 6" preserveAspectRatio="none" fill="none" stroke="#221E17" stroke-width="1.7" stroke-linecap="round"><path d="M2 3.5 C40 1.5 70 5 120 3 S200 1.5 298 3.5"></path></svg>
+<label class="fld"><span class="cap"><span data-en="Username">Kullanıcı adı</span><span class="hint" data-en="what others will see">diğerleri bunu görür</span></span><input type="text" name="new-username" id="regUser" autocomplete="off" maxlength="24" spellcheck="false"><i class="pen"></i></label>
+<div class="note" id="nRegUser" hidden></div>
+<label class="fld" id="lRegEmail"><span class="cap"><span data-en="Bilkent e-mail">Bilkent e-postası</span><span class="hint">@bilkent.edu.tr · @ug.bilkent.edu.tr</span></span><input type="email" name="email" id="regEmail" autocomplete="email" placeholder="ad.soyad@ug.bilkent.edu.tr" inputmode="email" spellcheck="false"><i class="pen"></i></label>
+<div class="note" id="nRegEmail" hidden></div>
+<label class="fld pw"><span class="cap"><span data-en="Password">Şifre</span></span><input type="password" name="new-password" id="regPass" autocomplete="new-password"><button class="eye" type="button" data-eye="regPass" data-en="show">göster</button><i class="pen"></i></label>
+<div class="str" id="str"><ul class="chk"><li data-k="length" data-en="at least 8 characters">en az 8 karakter</li><li data-k="uppercase" data-en="one uppercase letter">bir büyük harf</li><li data-k="number" data-en="one digit">bir rakam</li><li data-k="special" data-en="one special character">bir özel karakter</li></ul><div class="bar"><span class="lbl" id="strLbl" data-en="password strength">şifre gücü</span><i id="strBar"></i></div></div>
+<label class="fld pw" id="lRegPass2"><span class="cap"><span data-en="Password, again">Şifre, tekrar</span></span><input type="password" name="confirm" id="regPass2" autocomplete="new-password"><button class="eye" type="button" data-eye="regPass2" data-en="show">göster</button><i class="pen"></i></label>
+<div class="note" id="nRegPass2" hidden></div>
+<div class="note" id="nRegForm" hidden></div>
+<div class="foot"><span class="hand" data-en="the stamp inks in at 75%">damga %75'te mürekkeplenir</span><button class="send" type="submit" id="sendReg" disabled><span class="t" data-en="APPLY">BAŞVUR</span><span class="arr">→</span><span class="spin"></span></button></div>
+<p class="swap"><span data-en="Already a member?">Zaten üye misin?</span> <button type="button" data-go="login" data-en="sign in →">giriş yap →</button></p>
+</form>
+</article>
+
+<div class="env" id="env" aria-hidden="true">
+<div class="env-body"><div class="env-pul"><img src="/site/assets/logo.png" alt=""></div><div class="env-addr">bilkenters<small>Bilkent Üniversitesi, 06800 Ankara</small></div></div>
+<div class="env-flap"></div>
+<span class="stamp blue lg env-stamp">GÖNDERİLDİ</span>
+<span class="seal">b</span>
+</div>
+</div>
+</section>
+</main>
+
+<!-- giriş başarılı: üye kartı basılır, terminal şeridi açılır, sayfa terminale devredilir -->
+<div class="gate" id="gate" hidden role="status" aria-live="polite">
+<div class="gate-in">
+<article class="kart paper hi" id="kart"><span class="tape top teal"></span><span class="tape k2"></span>
+<header class="k-top"><span class="k-brand"><img src="/site/assets/logo.png" alt="">bilkenters</span><span class="k-no"><span id="kLbl">ÜYE KARTI</span> · <b id="kNo">0001</b></span></header>
+<p class="eb" id="kHolder">KART SAHİBİ</p>
+<p class="k-name"><span id="kName"></span><svg viewBox="0 0 100 9" preserveAspectRatio="none" fill="none" stroke="#D9A62E" stroke-width="3.5" stroke-linecap="round"><path d="M2 6 C20 3 40 7 60 4.5 S88 3 98 5.5"></path></svg></p>
+<div class="k-rows">
+<div class="k-row" style="--i:0"><span id="kR1">yetki</span><i class="ld"></i><b id="kV1">terminal · tam erişim</b></div>
+<div class="k-row" style="--i:1"><span id="kR2">oturum</span><i class="ld"></i><b>tmux · main</b></div>
+<div class="k-row" style="--i:2"><span id="kR3">giriş</span><i class="ld"></i><b id="kWhen"></b></div>
+</div>
+<span class="stamp green k-stamp" id="kStamp">GİRİŞ BAŞARILI</span>
+<p class="k-hand" id="kHand"></p>
+</article>
+<div class="tty" id="tty"><span class="tty-dots" aria-hidden="true"><i></i><i></i><i></i></span><pre id="ttyOut"></pre></div>
+<p class="skip" id="skip"></p>
+</div>
+</div>
+
+<script src="/site/giris/giris.js"></script>
+</body></html>
