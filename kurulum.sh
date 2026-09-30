@@ -119,7 +119,10 @@ mv -f /usr/local/bin/ttyd.new /usr/local/bin/ttyd
 TTYD_TMP=$!
 sleep 1
 curl -fsS --compressed http://127.0.0.1:7690/ \
-  | sed 's|<head>|<head><script src="/static/kutuphane.js"></script>|' >/var/www/kutuphane/ttyd-index.html
+  | sed -e 's|<head>|<head><script src="/static/kutuphane.js"></script>|' \
+        -e 's|<title>[^<]*</title>|<title>Okuma Salonu — bilkenters</title>|' \
+        -e 's|<link rel="icon"[^>]*>|<link rel="icon" type="image/png" href="/site/assets/logo.png">|' \
+  >/var/www/kutuphane/ttyd-index.html
 kill "$TTYD_TMP" 2>/dev/null || true
 grep -q 'kutuphane.js' /var/www/kutuphane/ttyd-index.html
 
@@ -134,7 +137,7 @@ WorkingDirectory=/home/$DEV_USER
 Environment=HOME=/home/$DEV_USER
 Environment=TERM=xterm-256color
 Environment=LANG=C.UTF-8
-ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -O -I /var/www/kutuphane/ttyd-index.html -t fontSize=15 -t titleFixed=Terminal -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux -u new -A -s main
+ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -O -I /var/www/kutuphane/ttyd-index.html -t fontSize=15 -t "titleFixed=Okuma Salonu — bilkenters" -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux -u new -A -s main
 Restart=always
 KillMode=process
 
