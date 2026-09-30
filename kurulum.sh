@@ -51,15 +51,20 @@ fi
 echo "$DEV_USER:$WEB_PASS" | chpasswd
 usermod -aG sudo "$DEV_USER"
 
-# tmux: renkler tam, fare tekerleğiyle kaydırma
-cat >"/home/$DEV_USER/.tmux.conf" <<'EOF'
-set -g default-terminal "tmux-256color"
-set -ga terminal-overrides ",xterm-256color:RGB"
-set -g mouse on
-set -g history-limit 50000
-set -g status off
-EOF
+# Ek dosyalar: repo klonlandıysa yanından, yoksa GitHub'dan
+REPO_RAW="https://raw.githubusercontent.com/Yultax/uzaktan-kontrol/main"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fetch() {
+  if [[ -f "$SCRIPT_DIR/$1" ]]; then cp "$SCRIPT_DIR/$1" "$2"; else curl -fsSL -o "$2" "$REPO_RAW/$1"; fi
+}
+
+# tmux: tıklanabilir sekme çubuğu, renkler, fare
+fetch config/tmux.conf "/home/$DEV_USER/.tmux.conf"
 chown "$DEV_USER:$DEV_USER" "/home/$DEV_USER/.tmux.conf"
+
+# Bağlantı testi sayfası (/test)
+mkdir -p /var/www/kutuphane
+fetch web/test.html /var/www/kutuphane/test.html
 
 echo "==> ttyd"
 ARCH="$(uname -m)"
@@ -76,7 +81,8 @@ User=$DEV_USER
 WorkingDirectory=/home/$DEV_USER
 Environment=HOME=/home/$DEV_USER
 Environment=TERM=xterm-256color
-ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -t fontSize=15 -t titleFixed=Terminal -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux new -A -s main
+Environment=LANG=C.UTF-8
+ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -t fontSize=15 -t titleFixed=Terminal -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux -u new -A -s main
 Restart=always
 KillMode=process
 
@@ -104,7 +110,14 @@ $DOMAIN {
 	basic_auth {
 		$WEB_USER $HASH
 	}
-	reverse_proxy 127.0.0.1:7681
+	handle /test {
+		root * /var/www/kutuphane
+		rewrite * /test.html
+		file_server
+	}
+	handle {
+		reverse_proxy 127.0.0.1:7681
+	}
 }
 EOF
 

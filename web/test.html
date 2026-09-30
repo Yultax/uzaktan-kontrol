@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bağlantı Testi</title>
+<style>
+  :root { --bg:#11111b; --card:#1e1e2e; --fg:#cdd6f4; --dim:#7f849c; --ok:#a6e3a1; --bad:#f38ba8; --wait:#f9e2af; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--fg); font:15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; display:flex; align-items:center; justify-content:center; padding:16px; }
+  main { width:100%; max-width:560px; background:var(--card); border-radius:12px; padding:24px; }
+  h1 { font-size:18px; margin:0 0 16px; }
+  ul { list-style:none; padding:0; margin:0 0 16px; }
+  li { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #313244; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .wait { color:var(--wait); }
+  #verdict { font-weight:bold; margin:16px 0 8px; }
+  p { color:var(--dim); margin:0; font-size:13px; }
+  a { color:#89b4fa; }
+</style>
+</head>
+<body>
+<main>
+  <h1>kutuphane · bağlantı testi</h1>
+  <ul>
+    <li><span>HTTPS</span><span id="https" class="ok">✓ çalışıyor</span></li>
+    <li><span>WebSocket açılıyor mu</span><span id="ws-open" class="wait">…</span></li>
+    <li><span>WebSocket 10 sn açık kalıyor mu</span><span id="ws-hold" class="wait">…</span></li>
+  </ul>
+  <div id="verdict" class="wait">Test ediliyor…</div>
+  <p id="hint"></p>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const set = (id, cls, text) => { const el = $(id); el.className = cls; el.textContent = text; };
+  let done = false;
+  function finish(ok, msg, hint) {
+    if (done) return; done = true;
+    set('verdict', ok ? 'ok' : 'bad', msg);
+    $('hint').innerHTML = hint || '';
+  }
+  const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+  let ws, opened = false;
+  try { ws = new WebSocket(url, ['tty']); } catch (e) {
+    set('ws-open', 'bad', '✗ ' + e.message);
+    finish(false, 'WebSocket engelli', 'Bu ağda terminal çalışmaz. Yedek (HTTP) mod gerekir.');
+  }
+  const openTimer = setTimeout(() => {
+    if (!opened) {
+      set('ws-open', 'bad', '✗ zaman aşımı');
+      set('ws-hold', 'bad', '–');
+      finish(false, 'WebSocket engelli', 'Bu ağda terminal çalışmaz. Yedek (HTTP) mod gerekir.');
+      try { ws.close(); } catch (e) {}
+    }
+  }, 8000);
+  if (ws) {
+    ws.onopen = () => {
+      opened = true; clearTimeout(openTimer);
+      set('ws-open', 'ok', '✓ açıldı');
+      setTimeout(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          set('ws-hold', 'ok', '✓ açık kaldı');
+          finish(true, 'Her şey yolunda, terminal bu ağda çalışır.', '<a href="/">Terminale git →</a>');
+          ws.close();
+        }
+      }, 10000);
+    };
+    ws.onclose = (e) => {
+      if (done) return;
+      clearTimeout(openTimer);
+      if (opened) {
+        set('ws-hold', 'bad', '✗ kesildi (kod ' + e.code + ')');
+        finish(false, 'WebSocket açılıyor ama kesiliyor', 'Ağ uzun bağlantıları kesiyor. Yedek (HTTP) mod gerekir.');
+      } else {
+        set('ws-open', 'bad', '✗ reddedildi (kod ' + e.code + ')');
+        set('ws-hold', 'bad', '–');
+        finish(false, 'WebSocket engelli', 'Bu ağda terminal çalışmaz. Yedek (HTTP) mod gerekir.');
+      }
+    };
+  }
+</script>
+</body>
+</html>
