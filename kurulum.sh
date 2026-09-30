@@ -26,7 +26,7 @@ fi
 
 echo "==> Paketler"
 apt-get update -y
-apt-get install -y curl git tmux sudo ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https
+apt-get install -y curl git tmux sudo ca-certificates gnupg
 
 PUBLIC_IP="$(curl -4 -fsS https://api.ipify.org)"
 if [[ -z "${DOMAIN:-}" ]]; then
@@ -92,14 +92,42 @@ if ! command -v caddy &>/dev/null; then
 fi
 
 HASH="$(caddy hash-password --plaintext "$WEB_PASS")"
+mkdir -p /var/log/caddy
+chown caddy:caddy /var/log/caddy
 cat >/etc/caddy/Caddyfile <<EOF
 $DOMAIN {
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
 	basic_auth {
 		$WEB_USER $HASH
 	}
 	reverse_proxy 127.0.0.1:7681
 }
 EOF
+
+echo "==> fail2ban (10 hatali giris = 1 saat ban)"
+apt-get install -y fail2ban
+cat >/etc/fail2ban/filter.d/caddy-auth.conf <<'EOF'
+[Definition]
+failregex = ^.*"remote_ip":"<HOST>".*"status":401
+ignoreregex =
+datepattern = "ts":{EPOCH}
+EOF
+cat >/etc/fail2ban/jail.d/caddy-auth.conf <<'EOF'
+[caddy-auth]
+enabled  = true
+port     = http,https
+filter   = caddy-auth
+logpath  = /var/log/caddy/access.log
+backend  = auto
+maxretry = 10
+findtime = 600
+bantime  = 3600
+EOF
+touch /var/log/caddy/access.log
+chown caddy:caddy /var/log/caddy/access.log
 
 echo "==> Claude Code ($DEV_USER için)"
 sudo -iu "$DEV_USER" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
@@ -114,6 +142,8 @@ fi
 systemctl daemon-reload
 systemctl enable --now ttyd
 systemctl restart caddy
+systemctl enable fail2ban
+systemctl restart fail2ban
 
 echo
 echo "================ KURULUM TAMAM ================"
