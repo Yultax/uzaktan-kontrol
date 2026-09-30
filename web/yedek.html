@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="tr" data-mode="yedek">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terminal (yedek)</title>
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<style>
+  :root { --bg:#1e1e2e; --bar:#181825; --fg:#cdd6f4; --dim:#7f849c; --warn:#f9e2af; --bad:#f38ba8; --ok:#a6e3a1; }
+  html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; }
+  body { display:flex; flex-direction:column; }
+  #bar { flex:none; display:flex; align-items:center; gap:12px; padding:4px 12px; background:var(--bar);
+         color:var(--dim); font:12px/1.6 ui-monospace,Menlo,monospace; }
+  #bar b { color:var(--warn); font-weight:600; }
+  #bar a { color:#89b4fa; text-decoration:none; margin-left:auto; }
+  #st.ok { color:var(--ok); } #st.bad { color:var(--bad); }
+  #term { flex:1; min-height:0; padding:4px 0 0 6px; }
+</style>
+<script src="/static/vendor/xterm.js"></script>
+<script src="/static/vendor/addon-fit.js"></script>
+<script src="/static/kutuphane.js"></script>
+</head>
+<body>
+<div id="bar"><b>YEDEK MOD</b><span>WebSocket'siz (HTTP)</span><span id="st">bağlanıyor…</span><a href="/?ws">normal moda dön</a></div>
+<div id="term"></div>
+<script>
+(function () {
+  'use strict';
+  var H = { 'X-Kutuphane': '1' };
+  var st = document.getElementById('st');
+  function status(text, cls) { st.textContent = text; st.className = cls || ''; }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  var term = new Terminal({
+    fontSize: 15, cursorBlink: true, scrollback: 5000,
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    macOptionClickForcesSelection: true,
+    theme: { background: '#1e1e2e', foreground: '#cdd6f4', cursor: '#f5e0dc', selectionBackground: '#585b70' },
+  });
+  var fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(document.getElementById('term'));
+  fit.fit();
+  window.kutuphaneTerm = term;
+
+  // ready: uygulama ilk çıktısını verene kadar girdiyi beklet (açılışta tty tamponu temizlenir)
+  var sid = null, offset = 0, gen = 0, ready = false;
+
+  // --- girdi: sırayı koruyarak küçük gruplar halinde gönder ---
+  var queue = '', sending = false, enc = new TextEncoder();
+  function flush() {
+    if (sending || !queue || !sid || !ready) return;
+    sending = true;
+    var chunk = queue; queue = '';
+    fetch('/api/write?sid=' + sid, { method: 'POST', headers: H, body: enc.encode(chunk) })
+      .then(function (r) {
+        if (r.status === 404) return reconnect();
+        if (r.status >= 500) throw new Error('HTTP ' + r.status);  // geçici hata: tekrar dene
+      })
+      .catch(function () { queue = chunk + queue; return sleep(500); })
+      .then(function () { sending = false; flush(); });
+  }
+  term.onData(function (d) { queue += d; setTimeout(flush, 4); });
+  term.onBinary(function (d) { queue += d; setTimeout(flush, 4); });
+
+  // --- boyut ---
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { fit.fit(); }, 100);
+  });
+  term.onResize(function (sz) {
+    if (!sid) return;
+    fetch('/api/resize?sid=' + sid, {
+      method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H),
+      body: JSON.stringify({ cols: sz.cols, rows: sz.rows }),
+    }).catch(function () {});
+  });
+
+  // --- çıktı: long-poll ---
+  async function poll(myGen) {
+    var errors = 0;
+    while (myGen === gen) {
+      try {
+        var r = await fetch('/api/read?sid=' + sid + '&offset=' + offset, { headers: H, cache: 'no-store' });
+        if (myGen !== gen) return;
+        if (r.status === 404) return reconnect();
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var data = new Uint8Array(await r.arrayBuffer());
+        if (data.length) {
+          term.write(data);
+          if (!ready) setTimeout(function () { ready = true; flush(); }, 150);
+        }
+        offset = Number(r.headers.get('X-Next')) || offset;
+        errors = 0;
+        status('bağlı', 'ok');
+        if (r.headers.get('X-Alive') === '0') return reconnect();
+      } catch (e) {
+        errors++;
+        status('bağlantı sorunu, tekrar deneniyor…', 'bad');
+        await sleep(Math.min(1000 * errors, 5000));
+      }
+    }
+  }
+
+  async function connect() {
+    var myGen = ++gen;
+    sid = null; offset = 0; ready = false;
+    status('bağlanıyor…');
+    for (var attempt = 1; myGen === gen; attempt++) {
+      try {
+        var r = await fetch('/api/open', {
+          method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, H),
+          body: JSON.stringify({ cols: term.cols, rows: term.rows }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        sid = (await r.json()).sid;
+        term.reset();
+        poll(myGen);
+        flush();
+        term.focus();
+        return;
+      } catch (e) {
+        status('sunucuya ulaşılamıyor, tekrar deneniyor…', 'bad');
+        await sleep(Math.min(1000 * attempt, 5000));
+      }
+    }
+  }
+  var reconnecting = false;
+  function reconnect() {
+    if (reconnecting) return;
+    reconnecting = true;
+    setTimeout(function () { reconnecting = false; connect(); }, 300);
+  }
+
+  window.addEventListener('pagehide', function () {
+    if (sid) fetch('/api/close?sid=' + sid, { method: 'POST', headers: H, keepalive: true }).catch(function () {});
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

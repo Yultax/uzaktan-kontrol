@@ -62,14 +62,50 @@ fetch() {
 fetch config/tmux.conf "/home/$DEV_USER/.tmux.conf"
 chown "$DEV_USER:$DEV_USER" "/home/$DEV_USER/.tmux.conf"
 
-# Bağlantı testi sayfası (/test)
-mkdir -p /var/www/kutuphane
+# Web dosyaları: /test, /yedek, görsel yapıştırma scripti, xterm.js
+mkdir -p /var/www/kutuphane/static/vendor
 fetch web/test.html /var/www/kutuphane/test.html
+fetch web/yedek.html /var/www/kutuphane/yedek.html
+fetch web/static/kutuphane.js /var/www/kutuphane/static/kutuphane.js
+XTERM="https://cdn.jsdelivr.net/npm"
+curl -fsSL -o /var/www/kutuphane/static/vendor/xterm.js "$XTERM/@xterm/xterm@5.5.0/lib/xterm.js"
+curl -fsSL -o /var/www/kutuphane/static/vendor/xterm.css "$XTERM/@xterm/xterm@5.5.0/css/xterm.css"
+curl -fsSL -o /var/www/kutuphane/static/vendor/addon-fit.js "$XTERM/@xterm/addon-fit@0.10.0/lib/addon-fit.js"
+
+echo "==> kutuphane-api (WebSocket'siz yedek mod + gorsel yukleme)"
+mkdir -p /opt/kutuphane
+fetch server/kutuphane_api.py /opt/kutuphane/kutuphane_api.py
+cat >/etc/systemd/system/kutuphane-api.service <<EOF
+[Unit]
+Description=kutuphane API (HTTP terminal + upload)
+After=network.target
+
+[Service]
+User=$DEV_USER
+WorkingDirectory=/home/$DEV_USER
+Environment=HOME=/home/$DEV_USER
+Environment=LANG=C.UTF-8
+ExecStart=/usr/bin/python3 /opt/kutuphane/kutuphane_api.py
+Restart=always
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 echo "==> ttyd"
 ARCH="$(uname -m)"
 curl -fsSL -o /usr/local/bin/ttyd "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.${ARCH}"
 chmod +x /usr/local/bin/ttyd
+
+# ttyd'nin kendi sayfasını al, <head> başına kutuphane.js ekle
+/usr/local/bin/ttyd -i 127.0.0.1 -p 7690 true >/dev/null 2>&1 &
+TTYD_TMP=$!
+sleep 1
+curl -fsS --compressed http://127.0.0.1:7690/ \
+  | sed 's|<head>|<head><script src="/static/kutuphane.js"></script>|' >/var/www/kutuphane/ttyd-index.html
+kill "$TTYD_TMP" 2>/dev/null || true
+grep -q 'kutuphane.js' /var/www/kutuphane/ttyd-index.html
 
 cat >/etc/systemd/system/ttyd.service <<EOF
 [Unit]
@@ -82,7 +118,7 @@ WorkingDirectory=/home/$DEV_USER
 Environment=HOME=/home/$DEV_USER
 Environment=TERM=xterm-256color
 Environment=LANG=C.UTF-8
-ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -t fontSize=15 -t titleFixed=Terminal -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux -u new -A -s main
+ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -O -I /var/www/kutuphane/ttyd-index.html -t fontSize=15 -t titleFixed=Terminal -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux -u new -A -s main
 Restart=always
 KillMode=process
 
@@ -110,9 +146,21 @@ $DOMAIN {
 	basic_auth {
 		$WEB_USER $HASH
 	}
+	handle /api/* {
+		reverse_proxy 127.0.0.1:7682
+	}
+	handle /static/* {
+		root * /var/www/kutuphane
+		file_server
+	}
 	handle /test {
 		root * /var/www/kutuphane
 		rewrite * /test.html
+		file_server
+	}
+	handle /yedek {
+		root * /var/www/kutuphane
+		rewrite * /yedek.html
 		file_server
 	}
 	handle {
@@ -154,7 +202,7 @@ if command -v ufw &>/dev/null && ufw status | grep -q active; then
 fi
 
 systemctl daemon-reload
-systemctl enable --now ttyd
+systemctl enable --now ttyd kutuphane-api
 systemctl restart caddy
 systemctl enable fail2ban
 systemctl restart fail2ban
