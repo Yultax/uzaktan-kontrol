@@ -107,8 +107,10 @@ EOF
 
 echo "==> ttyd"
 ARCH="$(uname -m)"
-curl -fsSL -o /usr/local/bin/ttyd "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.${ARCH}"
-chmod +x /usr/local/bin/ttyd
+# Önce geçici dosyaya indir, sonra yerine taşı: ttyd çalışırken üstüne yazmak "Text file busy" verir
+curl -fsSL -o /usr/local/bin/ttyd.new "https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.${ARCH}"
+chmod +x /usr/local/bin/ttyd.new
+mv -f /usr/local/bin/ttyd.new /usr/local/bin/ttyd
 
 # ttyd'nin kendi sayfasını al, <head> başına kutuphane.js ekle
 /usr/local/bin/ttyd -i 127.0.0.1 -p 7690 true >/dev/null 2>&1 &
