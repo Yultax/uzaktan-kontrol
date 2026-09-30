@@ -51,7 +51,9 @@ echo "$DEV_USER:$WEB_PASS" | chpasswd
 usermod -aG sudo "$DEV_USER"
 
 # Ek dosyalar: repo klonlandıysa yanından, yoksa GitHub'dan
-REPO_RAW="https://raw.githubusercontent.com/Yultax/uzaktan-kontrol/main"
+# raw.githubusercontent "main" adresini birkaç dakika önbellekte tutar; son commit'e sabitle ki eski dosya gelmesin
+REPO_REF="$(curl -fsSL -H 'Accept: application/vnd.github.sha' https://api.github.com/repos/Yultax/uzaktan-kontrol/commits/main 2>/dev/null || echo main)"
+REPO_RAW="https://raw.githubusercontent.com/Yultax/uzaktan-kontrol/$REPO_REF"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fetch() {
   if [[ -f "$SCRIPT_DIR/$1" ]]; then cp "$SCRIPT_DIR/$1" "$2"; else curl -fsSL -o "$2" "$REPO_RAW/$1"; fi
