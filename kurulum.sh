@@ -76,8 +76,9 @@ User=$DEV_USER
 WorkingDirectory=/home/$DEV_USER
 Environment=HOME=/home/$DEV_USER
 Environment=TERM=xterm-256color
-ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -t fontSize=15 -t titleFixed=Terminal tmux new -A -s main
+ExecStart=/usr/local/bin/ttyd -i 127.0.0.1 -p 7681 -W -t fontSize=15 -t titleFixed=Terminal -t macOptionClickForcesSelection=true -t rightClickSelectsWord=false tmux new -A -s main
 Restart=always
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
