@@ -14,6 +14,8 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/resize  ?sid=   {"cols":..,"rows":..}
   POST /api/close   ?sid=
   POST /api/upload  (gövde: görsel)            -> {"path":..}
+  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","bolme"}]}
+  POST /api/sekme   {"islem":"sec|yeni|kapat","no":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
 import hashlib
@@ -24,6 +26,7 @@ import pty
 import secrets
 import signal
 import struct
+import subprocess
 import sys
 import termios
 import threading
@@ -34,8 +37,9 @@ from urllib.parse import parse_qs, urlparse
 HOST, PORT = "127.0.0.1", int(os.environ.get("KUTUPHANE_PORT", "7682"))
 HOME = os.path.expanduser("~")
 UPLOAD_DIR = os.path.join(HOME, "uploads")
+TMUX_SESSION = os.environ.get("KUTUPHANE_SESSION", "main")
 TMUX_CMD = (os.environ["KUTUPHANE_CMD"].split() if os.environ.get("KUTUPHANE_CMD")
-            else ["tmux", "-u", "new", "-A", "-s", os.environ.get("KUTUPHANE_SESSION", "main")])
+            else ["tmux", "-u", "new", "-A", "-s", TMUX_SESSION])
 BUF_MAX = 2 * 1024 * 1024       # oturum başına tutulan çıktı
 POLL_TIMEOUT = 25               # long-poll süresi (proxy'ler genelde 30-60 sn'de keser)
 IDLE_TIMEOUT = 90               # bu kadar sessiz kalan oturum kapatılır (tmux yaşamaya devam eder)
@@ -193,6 +197,59 @@ sessions = {}
 sessions_lock = threading.Lock()
 
 
+# ---------- sekmeler (sol panel) ----------
+WIN_FIELDS = ("window_index", "window_active", "window_panes", "window_name",
+              "pane_current_command", "pane_current_path")
+WIN_FORMAT = "\t".join("#{%s}" % f for f in WIN_FIELDS)
+
+
+def tmux(*args):
+    try:
+        r = subprocess.run(["tmux", *args], capture_output=True, text=True, timeout=5)
+    except subprocess.SubprocessError as e:
+        raise OSError(str(e))
+    if r.returncode:
+        raise OSError(r.stderr.strip() or "tmux hatasi")
+    return r.stdout
+
+
+def list_windows():
+    wins = []
+    for line in tmux("list-windows", "-t", "=" + TMUX_SESSION, "-F", WIN_FORMAT).splitlines():
+        p = line.split("\t")
+        if len(p) != len(WIN_FIELDS) or not p[0].isdigit():
+            continue
+        path = p[5]
+        if path == HOME or path.startswith(HOME + "/"):
+            path = "~" + path[len(HOME):]
+        wins.append({"no": int(p[0]), "aktif": p[1] == "1", "bolme": int(p[2] or 1),
+                     "ad": p[3], "komut": p[4], "dizin": path})
+    return wins
+
+
+def window_action(req):
+    """(durum kodu, gövde) döner. Son sekme kapatılmaz: kapanırsa tmux oturumu da kapanır."""
+    if not isinstance(req, dict):
+        return 400, {"error": "bad request"}
+    islem, no = req.get("islem"), req.get("no")
+    target = "=" + TMUX_SESSION + ":"
+    if islem == "yeni":
+        tmux("new-window", "-t", target, "-c", "#{pane_current_path}")
+    elif islem in ("sec", "kapat"):
+        wins = list_windows()
+        if isinstance(no, bool) or not isinstance(no, int) or no not in [w["no"] for w in wins]:
+            return 404, {"error": "sekme yok"}
+        if islem == "sec":
+            tmux("select-window", "-t", target + str(no))
+        elif len(wins) < 2:
+            return 409, {"error": "son sekme kapatilamaz"}
+        else:
+            tmux("kill-window", "-t", target + str(no))
+    else:
+        return 400, {"error": "bad request"}
+    return 200, {"sekmeler": list_windows()}
+
+
 def janitor():
     while True:
         time.sleep(15)
@@ -318,6 +375,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(403, {"error": "giris gerekli"})
         if url.path == "/api/oturum":
             return self._send(200, {"giris": self._authed()})
+        if url.path == "/api/sekmeler":
+            if self.headers.get("X-Kutuphane") != "1":
+                return self._send(403, {"error": "forbidden"})
+            try:
+                return self._send(200, {"sekmeler": list_windows()})
+            except OSError as e:
+                return self._send(500, {"error": str(e)})
         if url.path == "/api/health":
             return self._send(200, {"ok": True, "sessions": len(sessions)})
         self._send(404, {"error": "not found"})
@@ -356,6 +420,13 @@ class Handler(BaseHTTPRequestHandler):
                 with open(path, "wb") as f:
                     f.write(data)
                 return self._send(200, {"path": path})
+
+            if url.path == "/api/sekme":
+                try:
+                    req = json.loads(self._body(4096) or b"{}")
+                except ValueError:
+                    return self._send(400, {"error": "bad request"})
+                return self._send(*window_action(req))
 
             s = self._session(qs)
             if not s:
