@@ -2,7 +2,7 @@
    1) kâğıt dünya: zarf uçar, bilkenters üye kartı düşmeye başlar, isim yazılır
    2) kesinti: ekran bir anda siyaha geçer, ortadan tek bir ışık çizgisi açılır
    3) erişim ekranı: kimlik doğrulama logları ve hex akışı hızla geçer, "İZİN VERİLDİ" çözülerek belirir
-   4) zemin ttyd'nin rengine (#2b2b2b) döner → "/" */
+   4) zemin okuma salonunun rengine (#2b2b2b) döner → "/" */
 
 /* ── 1 · kâğıt dünya ── */
 .gate{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px 16px;box-sizing:border-box;overflow:hidden;background:rgba(6,10,20,0);transition:background .45s ease}
@@ -65,7 +65,7 @@ body.cut .gate,body.cut>header,body.cut>main,body.cut>.doodle{animation:h-blow .
 .h-skip{position:absolute;left:0;right:0;bottom:22px;margin:0;text-align:center;font-size:11px;letter-spacing:.14em;color:var(--h-dim);opacity:0;transition:opacity .3s}
 .hack.grant .h-skip{opacity:1}
 
-/* ── 4 · terminale devir ── */
+/* ── 4 · salona devir ── */
 .hack.out{background:#2b2b2b}
 .hack.out>*{opacity:0;transition:opacity .22s ease}
 .hack.out::after{opacity:0}

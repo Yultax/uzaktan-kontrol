@@ -5,11 +5,11 @@ const wait=ms=>new Promise(r=>setTimeout(r,RM?0:ms));
 let lang=localStorage.getItem('bk-lang')||'tr';
 const M={
 tr:{invalid:'Kullanıcı adı ya da şifre hatalı.',invalidSg:'Şifreni unuttuysan',invalidLnk:'şifremi unuttum →',rate:'Postane biraz yoğun.',rateSg:'Çok deneme oldu, {n} sn sonra tekrar dene.',net:'Mektup postaneye ulaşmadı.',netSg:'Bağlantını kontrol edip tekrar dene.',needEmail:'Bilkent mailin lazım.',needEmailSg:'@bilkent.edu.tr ya da @ug.bilkent.edu.tr ile biten bir adres.',mismatch:'Şifreler aynı değil.',mismatchSg:'İkisini de bir daha kontrol et.',empty:'Boş kalan yer var.',emptySg:'Bütün satırları doldurup gönder.',user:'Kullanıcı adı 3–24 karakter, harf ve rakam.',userSg:'Boşluk ve özel karakter olmadan.',weak:'Şifre henüz yeterince güçlü değil.',weakSg:'Yukarıdaki 4 maddeden en az 3’ü işaretlenmeli.',regFail:'Başvurun postaneye ulaşmadı.',regFailSg:'Kayıt API’sine istek gönderilemedi — sunucu şu an yanıt vermiyor. Biraz sonra tekrar dene.',str:['şifre gücü','zayıf','orta','iyi','güçlü'],fTitle:'Kısa bir not yaz',fBody:'Bilkent adresini yaz; sana yeni bir şifre bağlantısı postalayalım.',fSend:'GÖNDER',fFail:'Not gönderilemedi.',fFailSg:'Şifre sıfırlama API’sine istek gönderilemedi. Biraz sonra tekrar dene.',show:'göster',hide:'gizle',
-kLbl:'ÜYE KARTI',kHolder:'KART SAHİBİ',kR1:'yetki',kV1:'terminal · tam erişim',kR2:'oturum',kR3:'giriş',hEb:'erişim',hTitle:'İZİN VERİLDİ',hSub:'hoş geldin, {u} · terminal açılıyor',hSkip:'geçmek için bir tuşa bas',
-lReq:'oturum isteği',lUser:'kullanıcı',lPw:'parola özeti',lMatch:'eşleşti',lSig:'imza',lCookie:'çerez',lGate:'kapı',lTty:'terminal',lReady:'hazır',lRtt:'yanıt'},
+kLbl:'ÜYE KARTI',kHolder:'KART SAHİBİ',kR1:'yetki',kV1:'okuma salonu · tam erişim',kR2:'oturum',kR3:'giriş',hEb:'erişim',hTitle:'İZİN VERİLDİ',hSub:'hoş geldin, {u} · salon açılıyor',hSkip:'geçmek için bir tuşa bas',
+lReq:'oturum isteği',lUser:'kullanıcı',lPw:'parola özeti',lMatch:'eşleşti',lSig:'imza',lCookie:'çerez',lGate:'kapı',lRoom:'salon',lReady:'hazır',lRtt:'yanıt'},
 en:{invalid:'Username or password is wrong.',invalidSg:'Forgot your password?',invalidLnk:'reset it →',rate:'The post office is a bit busy.',rateSg:'Too many attempts, try again in {n}s.',net:'The letter never reached the post office.',netSg:'Check your connection and try again.',needEmail:'You need a Bilkent e-mail.',needEmailSg:'An address ending in @bilkent.edu.tr or @ug.bilkent.edu.tr.',mismatch:'Passwords do not match.',mismatchSg:'Check both once more.',empty:'Something is left blank.',emptySg:'Fill every line, then send.',user:'Username is 3–24 letters and digits.',userSg:'No spaces or special characters.',weak:'Password is not strong enough yet.',weakSg:'At least 3 of the 4 checks above.',regFail:'Your application never arrived.',regFailSg:'The sign-up API request could not be sent — the server is not responding. Try again later.',str:['password strength','weak','fair','good','strong'],fTitle:'Write a short note',fBody:'Enter your Bilkent address; we will mail you a new password link.',fSend:'SEND',fFail:'The note could not be sent.',fFailSg:'The password reset API request could not be sent. Try again later.',show:'show',hide:'hide',
-kLbl:'MEMBER CARD',kHolder:'CARD HOLDER',kR1:'access',kV1:'terminal · full',kR2:'session',kR3:'signed in',hEb:'access',hTitle:'ACCESS GRANTED',hSub:'welcome, {u} · opening terminal',hSkip:'press any key to skip',
-lReq:'session request',lUser:'user',lPw:'password hash',lMatch:'match',lSig:'signature',lCookie:'cookie',lGate:'gate',lTty:'terminal',lReady:'ready',lRtt:'rtt'}};
+kLbl:'MEMBER CARD',kHolder:'CARD HOLDER',kR1:'access',kV1:'reading room · full',kR2:'session',kR3:'signed in',hEb:'access',hTitle:'ACCESS GRANTED',hSub:'welcome, {u} · opening the reading room',hSkip:'press any key to skip',
+lReq:'session request',lUser:'user',lPw:'password hash',lMatch:'match',lSig:'signature',lCookie:'cookie',lGate:'gate',lRoom:'room',lReady:'ready',lRtt:'rtt'}};
 const t=(k,v={})=>Object.entries(v).reduce((s,[a,b])=>s.replace('{'+a+'}',b),M[lang][k]);
 const escH=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -68,7 +68,7 @@ else if(r.code==='RATE_LIMIT_EXCEEDED')rateNote($('#nLoginForm'),r.retryAfter||6
 else note($('#nLoginForm'),'red',t('net'),t('netSg'));
 });
 
-/* ===== GİRİŞ BAŞARILI: bilkenters kartı → kesinti → erişim ekranı → terminal ===== */
+/* ===== GİRİŞ BAŞARILI: bilkenters kartı → kesinti → erişim ekranı → okuma salonu ===== */
 const HEX='0123456789abcdef',GLY='ABCDEF0123456789#%&*/\\<>=+$@';
 const rnd=n=>Array.from({length:n},()=>HEX[Math.random()*16|0]).join('');
 async function sha(txt){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return rnd(64)}}
@@ -103,7 +103,7 @@ const L=[
  ()=>dots(t('lCookie'),22)+`bk_oturum · httponly · samesite=lax · 30d`,
  ()=>dots(t('lRtt'),22)+`<span class="v">${Math.max(1,Math.round(rtt||0))} ms</span>`,
  ()=>dots(t('lGate'),22)+`forward_auth /api/yetki <span class="ok">204</span>`,
- ()=>dots(t('lTty'),22)+`ttyd · tmux attach -t main <span class="ok">${t('lReady')}</span>`];
+ ()=>dots(t('lRoom'),22)+`main <span class="ok">${t('lReady')}</span>`];
 for(const line of L){if(gone)return;log.innerHTML+=ts()+line()+'\n';await wait(70+Math.random()*50);}
 /* ortada "İZİN VERİLDİ" harf harf çözülür */
 hack.classList.add('grant');
@@ -112,9 +112,9 @@ $('#hSub').innerHTML=escH(t('hSub',{u:'\u0000'})).replace('\u0000',`<span class=
 requestAnimationFrame(()=>{$('#hBar').style.width='100%'});
 await scramble($('#hTitle'),t('hTitle'),RM?0:520);
 await wait(900);hexOn=false;
-/* 4 · zemin terminalin rengine döner */
+/* 4 · zemin salonun rengine döner */
 enter();}
-/* terminalden geri gelinirse sayfa önbellekten açılmasın, formla başlasın */
+/* salondan geri gelinirse sayfa önbellekten açılmasın, formla başlasın */
 addEventListener('pageshow',e=>{if(e.persisted)location.reload()});
 
 /* kayıt: tasarımdaki kontroller aynı, ama kayıt API'si yok — her başvuru hatayla döner */

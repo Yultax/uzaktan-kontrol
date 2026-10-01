@@ -446,6 +446,11 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def send_response(self, code, message=None):
+        # Server başlığı yollama: arkada ne çalıştığı dışarıdan görünmesin
+        self.send_response_only(code, message)
+        self.send_header("Date", self.date_time_string())
+
     # --- yardımcılar ---
     def _send(self, code, body=b"", ctype="application/json", headers=None):
         if isinstance(body, (dict, list)):
