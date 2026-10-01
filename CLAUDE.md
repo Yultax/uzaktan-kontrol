@@ -23,7 +23,7 @@ VDS'e tarayıcıdan terminal erişimi. Dışarıdan bilkenters'ın "Kütüphane"
 | `/yedek` | `web/yedek.html` — WebSocket'siz (long-poll) terminal | oturum gerekli |
 | `/api/*` | `server/kutuphane_api.py` (127.0.0.1:7682) | oturum gerekli |
 
-- Sol sekme paneli: `web/static/kutuphane.js` içinde, `/api/sekmeler` ve `/api/sekme` uçlarını kullanır. Deneme aşamasında kapalı gelir (`?panel=1` açar, `?panel=0` kapatır, tercih `localStorage`'da). Sunucuda tarayıcı yok; görsel doğrulamayı kullanıcı yapar.
+- Sol sekme paneli: `web/static/kutuphane.js` içinde, `/api/sekmeler` ve `/api/sekme` uçlarını kullanır. Deneme aşamasında kapalı gelir (`?panel=1` açar, `?panel=0` kapatır, tercih `localStorage`'da). Panel `/api/sekmeler`'i sorduğu sürece API tmux'un üst sekme çubuğunu gizler (`status off`, yalnızca `main` oturumunda); 90 saniye soru gelmezse ya da `?panel=0` ile çubuk geri gelir. Sunucuda tarayıcı yok; görsel doğrulamayı kullanıcı yapar.
 - Oturum: `/api/giris` doğru kullanıcı/şifrede HMAC imzalı `bk_oturum` çerezi yazar (30 gün). Caddy korunan her istekte `forward_auth` ile `/api/yetki`'ye sorar; oturum yoksa sayfalar `/kutuphane`'ye yönlenir, diğer istekler 403.
 - Şifre: `/etc/kutuphane/auth.json` (scrypt). Değiştirmek: `printf '%s' "$P" | sudo -u arda python3 /opt/kutuphane/kutuphane_api.py --sifre-ayarla arda`.
 - Giriş deneme sınırı API'de (IP başına 10 dakikada 5) + fail2ban (Caddy log'unda 401).

@@ -14,8 +14,8 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/resize  ?sid=   {"cols":..,"rows":..}
   POST /api/close   ?sid=
   POST /api/upload  (gövde: görsel)            -> {"path":..}
-  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","bolme"}]}
-  POST /api/sekme   {"islem":"sec|yeni|kapat","no":..} -> güncel sekme listesi  (sol panel)
+  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme"}]}
+  POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk","no":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
 import hashlib
@@ -52,6 +52,7 @@ SESSION_TTL = 30 * 24 * 3600    # oturum çerezi 30 gün geçerli
 FAIL_WINDOW = 600               # bu sürede
 FAIL_MAX = 5                    # bu kadar hatalı giriş -> geçici blok (fail2ban da ayrıca izler)
 LOGIN_PAGE = "/kutuphane"
+PANEL_TIMEOUT = 90              # sol panel bu kadar süre sormazsa üstteki sekme çubuğu geri gelir
 
 
 # ---------- kimlik ----------
@@ -213,6 +214,46 @@ def tmux(*args):
     return r.stdout
 
 
+# Sol panel açıkken üstteki tmux sekme çubuğu gizlenir (aynı sekmeler iki yerde görünmesin).
+# Panel /api/sekmeler'i sormayı bırakırsa (kapandı, bozuldu, ?panel=0) janitor çubuğu geri getirir.
+panel = {"seen": time.time(), "hidden": None}   # hidden None: API yeni başladı, durum bilinmiyor
+panel_lock = threading.Lock()
+
+
+def set_bar_hidden(hidden):
+    with panel_lock:
+        if panel["hidden"] is hidden:
+            return
+        panel["hidden"] = hidden
+    try:
+        if hidden:
+            tmux("set-option", "-t", "=" + TMUX_SESSION + ":", "status", "off")
+        else:
+            tmux("set-option", "-u", "-t", "=" + TMUX_SESSION + ":", "status")
+    except OSError:
+        pass
+
+
+branches = {}                   # dizin -> (zaman, git dalı); her sorguda git çalıştırmamak için
+
+
+def git_branch(path):
+    now = time.time()
+    hit = branches.get(path)
+    if hit and now - hit[0] < 10:
+        return hit[1]
+    try:
+        r = subprocess.run(["git", "--no-optional-locks", "-C", path, "symbolic-ref", "--short", "-q", "HEAD"],
+                           capture_output=True, text=True, timeout=2)
+        branch = r.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        branch = ""
+    if len(branches) > 200:
+        branches.clear()
+    branches[path] = (now, branch)
+    return branch
+
+
 def list_windows():
     wins = []
     for line in tmux("list-windows", "-t", "=" + TMUX_SESSION, "-F", WIN_FORMAT).splitlines():
@@ -220,10 +261,11 @@ def list_windows():
         if len(p) != len(WIN_FIELDS) or not p[0].isdigit():
             continue
         path = p[5]
+        branch = git_branch(path) if path else ""
         if path == HOME or path.startswith(HOME + "/"):
             path = "~" + path[len(HOME):]
         wins.append({"no": int(p[0]), "aktif": p[1] == "1", "bolme": int(p[2] or 1),
-                     "ad": p[3], "komut": p[4], "dizin": path})
+                     "ad": p[3], "komut": p[4], "dizin": path, "dal": branch})
     return wins
 
 
@@ -235,6 +277,11 @@ def window_action(req):
     target = "=" + TMUX_SESSION + ":"
     if islem == "yeni":
         tmux("new-window", "-t", target, "-c", "#{pane_current_path}")
+    elif islem == "bol":
+        tmux("split-window", "-h", "-t", target, "-c", "#{pane_current_path}")
+    elif islem == "cubuk":      # panel kapatıldı: üstteki çubuğu beklemeden geri getir
+        panel["seen"] = 0
+        set_bar_hidden(False)
     elif islem in ("sec", "kapat"):
         wins = list_windows()
         if isinstance(no, bool) or not isinstance(no, int) or no not in [w["no"] for w in wins]:
@@ -260,6 +307,8 @@ def janitor():
                     s.close()
                     if not s.alive or now - s.last_seen > IDLE_TIMEOUT + 30:
                         sessions.pop(sid, None)
+        if now - panel["seen"] > PANEL_TIMEOUT:
+            set_bar_hidden(False)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -379,7 +428,10 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get("X-Kutuphane") != "1":
                 return self._send(403, {"error": "forbidden"})
             try:
-                return self._send(200, {"sekmeler": list_windows()})
+                wins = list_windows()
+                panel["seen"] = time.time()
+                set_bar_hidden(True)
+                return self._send(200, {"sekmeler": wins})
             except OSError as e:
                 return self._send(500, {"error": str(e)})
         if url.path == "/api/health":
