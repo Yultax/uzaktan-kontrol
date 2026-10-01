@@ -72,32 +72,36 @@
   }, true);
 
   // ---------- sol sekme paneli ----------
-  // Deneme aşamasında kapalı gelir: adrese ?panel=1 ekleyince açılır ve tarayıcıda hatırlanır,
-  // ?panel=0 kapatır. Panel açıkken üstteki sekme çubuğunu API gizler; panel susarsa geri gelir.
+  // Açık gelir: adrese ?panel=0 ekleyince kapanır ve tarayıcıda hatırlanır, ?panel=1 geri açar.
+  // Panel açıkken üstteki sekme çubuğunu API gizler; panel susarsa geri gelir.
   function panelIstendi() {
+    var kapali = false;
     try {
       var q = new URLSearchParams(location.search);
       if (q.has('panel')) {
-        if (q.get('panel') === '0') {
-          localStorage.removeItem('kutuphane.panel');
+        kapali = q.get('panel') === '0';
+        if (kapali) {
           fetch('/api/sekme', {
             method: 'POST',
             headers: { 'X-Kutuphane': '1', 'Content-Type': 'application/json' },
             body: JSON.stringify({ islem: 'cubuk' }),
           }).catch(function () {});
-        } else {
-          localStorage.setItem('kutuphane.panel', '1');
         }
+        localStorage.setItem('kutuphane.panel', kapali ? '0' : '1');
       }
-      return localStorage.getItem('kutuphane.panel') === '1';
-    } catch (e) { return false; }
+      kapali = localStorage.getItem('kutuphane.panel') === '0';
+    } catch (e) {}
+    return !kapali;
   }
 
   function panelKur() {
     var GENIS = 236, DAR = 44;
-    // Panel yalnızca « düğmesiyle daralır; tercih tarayıcıda saklanır
-    var dar = false;
-    try { dar = localStorage.getItem('kutuphane.panel.dar') === '1'; } catch (e) {}
+    // Panel yalnızca « düğmesiyle daralır; tercih tarayıcıda saklanır. Tercih yoksa dar ekranda dar başlar
+    var dar = window.innerWidth < 700;
+    try {
+      var kayitliDar = localStorage.getItem('kutuphane.panel.dar');
+      if (kayitliDar !== null) dar = kayitliDar === '1';
+    } catch (e) {}
 
     var css = document.createElement('style');
     css.textContent =

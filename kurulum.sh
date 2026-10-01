@@ -12,11 +12,16 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 DEV_USER="${DEV_USER:-arda}"
+# Sitedeki kullanıcı adı: verilmediyse mevcut auth.json'daki korunur, o da yoksa DEV_USER
+if [[ -z "${WEB_USER:-}" ]]; then
+  WEB_USER="$(python3 -c 'import json; print(json.load(open("/etc/kutuphane/auth.json"))["user"])' 2>/dev/null || true)"
+  WEB_USER="${WEB_USER:-$DEV_USER}"
+fi
 
 # Şifre script'e gömülmez; kurulum sırasında sorulur
 if [[ -z "${WEB_PASS:-}" ]]; then
   while true; do
-    read -rsp "Site/kullanici sifresi ($DEV_USER icin): " WEB_PASS </dev/tty; echo
+    read -rsp "Site sifresi (kullanici adi: $WEB_USER): " WEB_PASS </dev/tty; echo
     read -rsp "Tekrar: " WEB_PASS2 </dev/tty; echo
     [[ -n "$WEB_PASS" && "$WEB_PASS" == "$WEB_PASS2" ]] && break
     echo "Sifreler uyusmadi, tekrar dene."
@@ -88,7 +93,7 @@ mkdir -p /opt/kutuphane
 fetch server/kutuphane_api.py /opt/kutuphane/kutuphane_api.py
 # Giriş şifresi: scrypt özeti + oturum imza anahtarı, sadece API kullanıcısı okuyabilir
 install -d -o "$DEV_USER" -g "$DEV_USER" -m 700 /etc/kutuphane
-printf '%s' "$WEB_PASS" | sudo -u "$DEV_USER" python3 /opt/kutuphane/kutuphane_api.py --sifre-ayarla "$DEV_USER"
+printf '%s' "$WEB_PASS" | sudo -u "$DEV_USER" python3 /opt/kutuphane/kutuphane_api.py --sifre-ayarla "$WEB_USER"
 cat >/etc/systemd/system/kutuphane-api.service <<EOF
 [Unit]
 Description=kutuphane API (HTTP terminal + upload)

@@ -7,7 +7,7 @@ VDS sunucusuna tarayıcıdan tam terminal erişimi: **ttyd + tmux + Caddy (HTTPS
 - Tarayıcıda gerçek terminal (xterm.js): renkler, animasyonlar, SSH gibi — ama SSH değil, sadece HTTPS (443).
 - tmux sayesinde sekme kapansa da oturum ve çalışan işler devam eder.
 - Üstte tıklanabilir sekme çubuğu: `[+ yeni]` yeni terminal, `[böl]` yan yana böl, `×` sekmeyi kapat.
-- **Sol sekme paneli (deneme):** adrese `?panel=1` ekleyince açılır ve o tarayıcıda hatırlanır, `?panel=0` kapatır. Sekmeye geçme, yeni sekme, bölme, kapatma (iki tıkla) ve daraltma; her sekmede klasör, git dalı, RAM kullanımı ve çalışıyor göstergesi (yeşil nokta), altta sistemin CPU/RAM/disk durumu görünür. Sekme adına çift tıklayıp ad verilebilir; ad verilmemişse Claude'un sekmeye verdiği başlık gösterilir. Arka plandaki bir sekmede Claude işini bitirir ya da onay beklerse satır sarı yanıp söner (aşağıdaki hook kurulu olmalı). Panel açıkken üstteki çubuk gizlenir, panel 90 saniye sessiz kalırsa kendiliğinden geri gelir.
+- **Sol sekme paneli:** açık gelir; adrese `?panel=0` ekleyince kapanır ve o tarayıcıda hatırlanır, `?panel=1` geri açar. Dar ekranda (telefon) daraltılmış başlar. Sekmeye geçme, yeni sekme, bölme, kapatma (iki tıkla) ve daraltma; her sekmede klasör, git dalı, RAM kullanımı ve çalışıyor göstergesi (yeşil nokta), altta sistemin CPU/RAM/disk durumu görünür. Sekme adına çift tıklayıp ad verilebilir; ad verilmemişse Claude'un sekmeye verdiği başlık gösterilir. Arka plandaki bir sekmede Claude işini bitirir ya da onay beklerse satır sarı yanıp söner (aşağıdaki hook kurulu olmalı). Panel açıkken üstteki çubuk gizlenir, panel 90 saniye sessiz kalırsa kendiliğinden geri gelir.
 - **Görsel yapıştırma:** Cmd+V veya sürükle-bırak → görsel sunucuya yüklenir, yolu terminale yapıştırılır (Claude Code görsel olarak ekler).
 - **WebSocket'siz yedek mod (`/yedek`):** WebSocket engelliyse ana sayfa otomatik olarak buraya geçer; HTTP long-poll ile aynı tmux oturumuna bağlanır.
 - **Bağlantı testi (`/test`):** Bulunduğun ağda WebSocket çalışıyor mu gösterir.
@@ -36,7 +36,7 @@ VDS sunucusuna tarayıcıdan tam terminal erişimi: **ttyd + tmux + Caddy (HTTPS
    curl -fsSLo k https://raw.githubusercontent.com/Yultax/uzaktan-kontrol/main/kurulum.sh; bash k
    ```
 
-3. Script alan adını ve şifreyi sorar. Bitince `https://terminal.ornek.com` adresine gir, **Giriş Yap** → kullanıcı adı (`arda`, büyük/küçük harf fark etmez) + bu şifre.
+3. Script alan adını ve şifreyi sorar. Bitince `https://terminal.ornek.com` adresine gir, **Giriş Yap** → kullanıcı adı (ilk kurulumda `arda`, `WEB_USER=...` ile başka verilebilir; büyük/küçük harf fark etmez) + bu şifre.
 4. Terminalde `claude` yaz. İlk girişte verilen linki istediğin cihazda açıp kodu yapıştır.
 
 ## Yönetim
@@ -56,7 +56,7 @@ journalctl -u kutuphane-guncelle -n 20           # son güncellemeler
 Şifre değiştirmek (eski oturumlar da düşer):
 
 ```bash
-read -rs P; printf '%s' "$P" | sudo -u arda python3 /opt/kutuphane/kutuphane_api.py --sifre-ayarla arda
+read -rs P; printf '%s' "$P" | sudo -u arda python3 /opt/kutuphane/kutuphane_api.py --sifre-ayarla KULLANICI_ADI   # sitedeki kullanıcı adı da buradan değişir
 passwd arda   # Linux/sudo şifresi ayrı; istersen aynı yap
 ```
 
