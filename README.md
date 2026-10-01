@@ -7,7 +7,7 @@ VDS sunucusuna tarayıcıdan tam terminal erişimi: **ttyd + tmux + Caddy (HTTPS
 - Tarayıcıda gerçek terminal (xterm.js): renkler, animasyonlar, SSH gibi — ama SSH değil, sadece HTTPS (443).
 - tmux sayesinde sekme kapansa da oturum ve çalışan işler devam eder.
 - Üstte tıklanabilir sekme çubuğu: `[+ yeni]` yeni terminal, `[böl]` yan yana böl, `×` sekmeyi kapat.
-- **Sol sekme paneli (deneme):** adrese `?panel=1` ekleyince açılır ve o tarayıcıda hatırlanır, `?panel=0` kapatır. Sekmeye geçme, yeni sekme, bölme, kapatma (iki tıkla) ve daraltma; her sekmede klasör ve git dalı görünür. Panel açıkken üstteki çubuk gizlenir, panel 90 saniye sessiz kalırsa kendiliğinden geri gelir.
+- **Sol sekme paneli (deneme):** adrese `?panel=1` ekleyince açılır ve o tarayıcıda hatırlanır, `?panel=0` kapatır. Sekmeye geçme, yeni sekme, bölme, kapatma (iki tıkla) ve daraltma; her sekmede klasör, git dalı, RAM kullanımı ve çalışıyor göstergesi (yeşil nokta), altta sistemin CPU/RAM/disk durumu görünür. Panel açıkken üstteki çubuk gizlenir, panel 90 saniye sessiz kalırsa kendiliğinden geri gelir.
 - **Görsel yapıştırma:** Cmd+V veya sürükle-bırak → görsel sunucuya yüklenir, yolu terminale yapıştırılır (Claude Code görsel olarak ekler).
 - **WebSocket'siz yedek mod (`/yedek`):** WebSocket engelliyse ana sayfa otomatik olarak buraya geçer; HTTP long-poll ile aynı tmux oturumuna bağlanır.
 - **Bağlantı testi (`/test`):** Bulunduğun ağda WebSocket çalışıyor mu gösterir.

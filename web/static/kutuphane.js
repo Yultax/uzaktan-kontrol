@@ -115,9 +115,14 @@
         'border-radius:8px;cursor:pointer;border:1px solid transparent}' +
       '.kp-s:hover{background:#1a1a1d}' +
       '.kp-s.kp-aktif{background:#26262b;border-color:#34343a}' +
-      '.kp-no{flex:none;width:24px;height:24px;line-height:24px;text-align:center;border-radius:6px;' +
+      '.kp-no{display:none;flex:none;width:24px;height:24px;line-height:24px;text-align:center;border-radius:6px;' +
         'background:#1f1f23;color:#8b8b94;font-weight:700}' +
       '.kp-aktif .kp-no{background:#89b4fa;color:#111113}' +
+      '.kp-nokta{flex:none;width:8px;height:8px;margin:0 2px;border-radius:50%;background:#3a3a41}' +
+      '.kp-mesgul .kp-nokta{background:#a6e3a1;box-shadow:0 0 6px rgba(166,227,161,.6)}' +
+      '.kp-mesgul .kp-no{box-shadow:inset 0 -2px 0 #a6e3a1}' +
+      '.kp-sira{color:#6b6b74;margin-right:6px;font-weight:400}' +
+      '.kp-ram{flex:none;color:#8b8b94;font-size:11px}' +
       '.kp-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}' +
       '.kp-ad,.kp-alt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
       '.kp-ad{color:#e4e4e7}' +
@@ -127,11 +132,21 @@
       '#kp .kp-x{flex:none;min-width:22px;height:22px;padding:0 5px;border-radius:6px;color:#6b6b74;font-size:14px}' +
       '#kp .kp-x:hover{background:#3a3a41;color:#f38ba8}' +
       '#kp .kp-x.kp-emin{background:#f38ba8;color:#111113;font-weight:700;font-size:12px}' +
+      '#kp-sis{flex:none;padding:8px 10px 2px;border-top:1px solid #232327;color:#8b8b94;font-size:11px}' +
+      '.kp-g{display:flex;align-items:center;gap:8px;height:18px}' +
+      '.kp-ge{flex:none;width:30px}' +
+      '.kp-gb{flex:1;height:4px;border-radius:2px;background:#26262b;overflow:hidden}' +
+      '.kp-gb i{display:block;height:100%;width:0;border-radius:2px;background:#a6e3a1;transition:width .4s}' +
+      '.kp-gb i.kp-orta{background:#f9e2af}' +
+      '.kp-gb i.kp-yuksek{background:#f38ba8}' +
+      '.kp-gd{flex:none;min-width:34px;text-align:right;color:#e4e4e7}' +
       '#kp-alt{flex:none;display:flex;gap:6px;padding:8px}' +
       '#kp #kp-yeni,#kp #kp-bol{padding:7px 8px;border-radius:8px;border:1px solid #232327;color:#8b8b94}' +
       '#kp #kp-yeni{flex:1;text-align:left;color:#a6e3a1}' +
       '#kp #kp-yeni:hover,#kp #kp-bol:hover{background:#1a1a1d;border-color:#34343a;color:#e4e4e7}' +
-      '#kp.kp-dar #kp-baslik,#kp.kp-dar .kp-m,#kp.kp-dar .kp-x,#kp.kp-dar .kp-yazi,#kp.kp-dar #kp-bol{display:none}' +
+      '#kp.kp-dar #kp-baslik,#kp.kp-dar .kp-m,#kp.kp-dar .kp-x,#kp.kp-dar .kp-yazi,#kp.kp-dar #kp-bol,' +
+        '#kp.kp-dar .kp-nokta,#kp.kp-dar .kp-ram,#kp.kp-dar #kp-sis{display:none}' +
+      '#kp.kp-dar .kp-no{display:block}' +
       '#kp.kp-dar #kp-ust{justify-content:center;padding:10px 0 8px}' +
       '#kp.kp-dar #kp-liste{padding:0 6px}' +
       '#kp.kp-dar .kp-s{justify-content:center;padding:4px 0;gap:0}' +
@@ -145,6 +160,11 @@
       '<div id="kp-ust"><span id="kp-baslik">Sekmeler</span>' +
       '<button id="kp-daralt" type="button" title="Paneli daralt / genişlet"></button></div>' +
       '<div id="kp-liste"></div>' +
+      '<div id="kp-sis">' +
+      '<div class="kp-g" data-g="cpu"><span class="kp-ge">CPU</span><span class="kp-gb"><i></i></span><span class="kp-gd"></span></div>' +
+      '<div class="kp-g" data-g="ram"><span class="kp-ge">RAM</span><span class="kp-gb"><i></i></span><span class="kp-gd"></span></div>' +
+      '<div class="kp-g" data-g="disk"><span class="kp-ge">Disk</span><span class="kp-gb"><i></i></span><span class="kp-gd"></span></div>' +
+      '</div>' +
       '<div id="kp-alt">' +
       '<button id="kp-yeni" type="button" title="Yeni sekme">+<span class="kp-yazi"> yeni sekme</span></button>' +
       '<button id="kp-bol" type="button" title="Sekmeyi yan yana böl">böl</button></div>';
@@ -168,67 +188,106 @@
       setTimeout(sigdir, 300);
     }
 
+    function boy(b) {
+      if (!(b > 0)) return '';
+      return b >= 1073741824 ? (b / 1073741824).toFixed(1) + 'G' : Math.round(b / 1048576) + 'M';
+    }
+    function yaz(el, metin) { if (el.textContent !== metin) el.textContent = metin; }
+    function yap(etiket, sinif) {
+      var e = document.createElement(etiket);
+      e.className = sinif;
+      return e;
+    }
+
+    // Satırlar yalnızca sekme listesi değişince yeniden kurulur; RAM/CPU gibi sık değişenler
+    // yerinde güncellenir ki imlecin altındaki satır tıklama sırasında yok olmasın.
     var emin = null, eminZaman = null;   // kapatma iki tıkla: önce ×, sonra "sil?"
-    function ciz(sekmeler) {
+    var son = [], kurulu = '', satirlar = {};
+    function kur(sekmeler) {
       liste.textContent = '';
+      satirlar = {};
       sekmeler.forEach(function (s) {
-        var satir = document.createElement('div');
-        satir.className = 'kp-s' + (s.aktif ? ' kp-aktif' : '');
-        satir.title = s.no + ' ' + s.ad + ' — ' + s.dizin + (s.dal ? ' (' + s.dal + ')' : '');
-        satir.setAttribute('data-no', s.no);
-
-        var no = document.createElement('span');
-        no.className = 'kp-no';
-        no.textContent = s.no;
-
-        var m = document.createElement('span');
-        m.className = 'kp-m';
-        var ad = document.createElement('span');
-        ad.className = 'kp-ad';
-        ad.textContent = s.ad + (s.bolme > 1 ? ' (' + s.bolme + ')' : '');
-        var alt = document.createElement('span');
-        alt.className = 'kp-alt';
-        alt.textContent = s.dizin;
-        if (s.dal) {
-          var dal = document.createElement('span');
-          dal.className = 'kp-dal';
-          dal.textContent = '  ' + s.dal;
-          alt.appendChild(dal);
-        }
+        var r = { satir: yap('div', 'kp-s'), nokta: yap('span', 'kp-nokta'), no: yap('span', 'kp-no'),
+                  sira: yap('span', 'kp-sira'), isim: yap('span', ''), alt: yap('span', 'kp-alt'),
+                  yol: yap('span', ''), dal: yap('span', 'kp-dal'), ram: yap('span', 'kp-ram'), x: null };
+        var m = yap('span', 'kp-m'), ad = yap('span', 'kp-ad');
+        r.satir.setAttribute('data-no', s.no);
+        ad.appendChild(r.sira);
+        ad.appendChild(r.isim);
+        r.alt.appendChild(r.yol);
+        r.alt.appendChild(r.dal);
         m.appendChild(ad);
-        m.appendChild(alt);
-
-        satir.appendChild(no);
-        satir.appendChild(m);
+        m.appendChild(r.alt);
+        r.satir.appendChild(r.nokta);
+        r.satir.appendChild(r.no);
+        r.satir.appendChild(m);
+        r.satir.appendChild(r.ram);
         if (sekmeler.length > 1) {
-          var x = document.createElement('button');
-          x.type = 'button';
-          x.className = 'kp-x' + (emin === s.no ? ' kp-emin' : '');
-          x.textContent = emin === s.no ? 'sil?' : '×';
-          x.title = 'Sekmeyi kapat';
-          x.setAttribute('data-kapat', s.no);
-          satir.appendChild(x);
+          r.x = yap('button', 'kp-x');
+          r.x.type = 'button';
+          r.x.title = 'Sekmeyi kapat';
+          r.x.setAttribute('data-kapat', s.no);
+          r.satir.appendChild(r.x);
         }
-        liste.appendChild(satir);
+        liste.appendChild(r.satir);
+        satirlar[s.no] = r;
       });
     }
 
-    // Liste değişmediyse yeniden çizme: imlecin altındaki satır tıklama sırasında yenilenmesin
-    var son = [], sonMetin = '';
-    function goster(sekmeler) {
-      if (!Array.isArray(sekmeler)) return;
-      var metin = JSON.stringify(sekmeler);
-      if (metin === sonMetin) return;
-      son = sekmeler;
-      sonMetin = metin;
-      ciz(son);
+    function ciz() {
+      var yapi = son.map(function (s) { return s.no; }).join(',');
+      if (yapi !== kurulu) { kur(son); kurulu = yapi; }
+      son.forEach(function (s) {
+        var r = satirlar[s.no];
+        var sinif = 'kp-s' + (s.aktif ? ' kp-aktif' : '') + (s.cpu >= 5 ? ' kp-mesgul' : '');
+        if (r.satir.className !== sinif) r.satir.className = sinif;
+        r.satir.title = s.no + ' ' + s.ad + ' — ' + s.dizin + (s.dal ? ' (' + s.dal + ')' : '') +
+          (s.ram ? ' — RAM ' + boy(s.ram) + ', CPU %' + (s.cpu || 0) : '');
+        yaz(r.no, String(s.no));
+        yaz(r.sira, String(s.no));
+        yaz(r.isim, s.ad + (s.bolme > 1 ? ' (' + s.bolme + ')' : ''));
+        yaz(r.yol, s.dizin);
+        yaz(r.dal, s.dal ? '  ' + s.dal : '');
+        yaz(r.ram, boy(s.ram));
+        if (r.x) {
+          var xs = 'kp-x' + (emin === s.no ? ' kp-emin' : '');
+          if (r.x.className !== xs) r.x.className = xs;
+          yaz(r.x, emin === s.no ? 'sil?' : '×');
+        }
+      });
+    }
+
+    var gostergeler = {};
+    Array.prototype.forEach.call(kp.querySelectorAll('.kp-g'), function (g) {
+      gostergeler[g.getAttribute('data-g')] = { cubuk: g.querySelector('i'), deger: g.querySelector('.kp-gd') };
+    });
+    function gosterge(ad, yuzde, metin) {
+      var g = gostergeler[ad];
+      if (!g || !(yuzde >= 0)) return;
+      yuzde = Math.min(100, yuzde);
+      g.cubuk.style.width = yuzde + '%';
+      g.cubuk.className = yuzde >= 85 ? 'kp-yuksek' : (yuzde >= 60 ? 'kp-orta' : '');
+      yaz(g.deger, metin);
+    }
+    function sistem(d) {
+      if (!d) return;
+      gosterge('cpu', d.cpu, '%' + d.cpu);
+      if (d.ram_toplam > 0) gosterge('ram', 100 * d.ram / d.ram_toplam, boy(d.ram) + '/' + boy(d.ram_toplam));
+      gosterge('disk', d.disk, '%' + d.disk);
+    }
+
+    function goster(j) {
+      if (!j || !Array.isArray(j.sekmeler)) return;
+      son = j.sekmeler;
+      ciz();
+      sistem(j.sistem);
     }
 
     // Sekme arka plandayken de sorar: API paneli açık saysın, üstteki çubuk gidip gelmesin
     function yenile() {
       fetch('/api/sekmeler', { headers: H, cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) { if (j) goster(j.sekmeler); })
+        .then(function (j) { goster(j); })
         .catch(function () {});
     }
 
@@ -240,7 +299,7 @@
       }).then(function (r) {
         return r.json().then(function (j) {
           if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
-          goster(j.sekmeler);
+          goster(j);
         });
       }).catch(function (e) {
         toast('Sekme işlemi olmadı: ' + e.message, 4000);
@@ -281,8 +340,8 @@
           islem('kapat', no);
         } else {
           emin = no;
-          ciz(son);
-          eminZaman = setTimeout(function () { emin = null; ciz(son); }, 3000);
+          ciz();
+          eminZaman = setTimeout(function () { emin = null; ciz(); }, 3000);
         }
         return odak();
       }

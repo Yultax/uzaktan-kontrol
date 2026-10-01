@@ -14,7 +14,8 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/resize  ?sid=   {"cols":..,"rows":..}
   POST /api/close   ?sid=
   POST /api/upload  (gövde: görsel)            -> {"path":..}
-  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme"}]}
+  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme","ram","cpu"}],
+                                                   "sistem":{"cpu","ram","ram_toplam","disk"}}
   POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk","no":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
@@ -254,6 +255,100 @@ def git_branch(path):
     return branch
 
 
+# ---------- kaynak kullanımı (sol panel) ----------
+CLK_TCK = os.sysconf("SC_CLK_TCK")
+PAGE_SIZE = os.sysconf("SC_PAGE_SIZE")
+usage = {"t": 0.0, "procs": {}, "cpu": None, "wins": {}, "sys": {}}
+usage_lock = threading.Lock()
+
+
+def read_procs():
+    """pid -> (ppid, işlemci tik sayısı, RSS bayt)"""
+    procs = {}
+    for name in os.listdir("/proc"):
+        if not name.isdigit():
+            continue
+        try:
+            with open("/proc/%s/stat" % name) as f:
+                data = f.read()
+            # komut adı parantez içinde ve boşluk içerebilir: son ')' sonrasını böl
+            rest = data[data.rindex(")") + 2:].split()
+            procs[int(name)] = (int(rest[1]), int(rest[11]) + int(rest[12]), int(rest[21]) * PAGE_SIZE)
+        except (OSError, ValueError, IndexError):
+            continue
+    return procs
+
+
+def sample_usage():
+    """Sekme başına RAM/CPU ve sistem durumu. Saniyede en fazla bir kez ölçer, arada son ölçümü verir."""
+    with usage_lock:
+        now = time.time()
+        if now - usage["t"] < 1.0:
+            return usage["wins"], usage["sys"]
+        roots = {}
+        try:
+            out = tmux("list-panes", "-s", "-t", "=" + TMUX_SESSION, "-F", "#{window_index}\t#{pane_pid}")
+        except OSError:
+            out = ""
+        for line in out.splitlines():
+            no, _, pid = line.partition("\t")
+            if no.isdigit() and pid.isdigit():
+                roots.setdefault(int(no), []).append(int(pid))
+
+        procs = read_procs()
+        old, dt = usage["procs"], now - usage["t"]
+        children = {}
+        for pid, info in procs.items():
+            children.setdefault(info[0], []).append(pid)
+        wins = {}
+        for no, pids in roots.items():
+            ram = ticks = 0
+            stack, seen = list(pids), set()
+            while stack:
+                pid = stack.pop()
+                if pid in seen or pid not in procs:
+                    continue
+                seen.add(pid)
+                ram += procs[pid][2]
+                if pid in old:
+                    ticks += max(0, procs[pid][1] - old[pid][1])
+                stack.extend(children.get(pid, ()))
+            cpu = 100.0 * ticks / CLK_TCK / dt if old and dt > 0 else 0.0
+            wins[no] = (ram, round(cpu))
+
+        system = {}
+        try:
+            with open("/proc/stat") as f:
+                v = [int(x) for x in f.readline().split()[1:9]]
+            total, idle = sum(v), v[3] + v[4]
+            if usage["cpu"] and total > usage["cpu"][0]:
+                system["cpu"] = round(100.0 * (1 - (idle - usage["cpu"][1]) / (total - usage["cpu"][0])))
+            usage["cpu"] = (total, idle)
+            mem = {}
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    k, _, rest = line.partition(":")
+                    if k in ("MemTotal", "MemAvailable"):
+                        mem[k] = int(rest.split()[0]) * 1024
+            system["ram_toplam"] = mem["MemTotal"]
+            system["ram"] = mem["MemTotal"] - mem["MemAvailable"]
+            d = os.statvfs("/")
+            used = d.f_blocks - d.f_bfree
+            system["disk"] = round(100.0 * used / (used + d.f_bavail))
+        except (OSError, ValueError, KeyError, IndexError, ZeroDivisionError):
+            pass
+        usage.update(t=now, procs=procs, wins=wins, sys=system)
+        return wins, system
+
+
+def panel_state():
+    wins = list_windows()
+    per, system = sample_usage()
+    for w in wins:
+        w["ram"], w["cpu"] = per.get(w["no"], (0, 0))
+    return {"sekmeler": wins, "sistem": system}
+
+
 def list_windows():
     wins = []
     for line in tmux("list-windows", "-t", "=" + TMUX_SESSION, "-F", WIN_FORMAT).splitlines():
@@ -294,7 +389,7 @@ def window_action(req):
             tmux("kill-window", "-t", target + str(no))
     else:
         return 400, {"error": "bad request"}
-    return 200, {"sekmeler": list_windows()}
+    return 200, panel_state()
 
 
 def janitor():
@@ -428,10 +523,10 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get("X-Kutuphane") != "1":
                 return self._send(403, {"error": "forbidden"})
             try:
-                wins = list_windows()
+                state = panel_state()
                 panel["seen"] = time.time()
                 set_bar_hidden(True)
-                return self._send(200, {"sekmeler": wins})
+                return self._send(200, state)
             except OSError as e:
                 return self._send(500, {"error": str(e)})
         if url.path == "/api/health":
