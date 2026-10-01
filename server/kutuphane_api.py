@@ -8,6 +8,9 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/giris   {"kullanici":..,"sifre":..} -> {"ok":true} + çerez  (herkese açık)
   GET  /api/oturum                             -> {"giris":bool}        (herkese açık)
   GET  /api/yetki                              -> 200 / 302 / 403       (Caddy forward_auth)
+  POST /api/nabiz   {"sayfa":..}               -> 204   (açık sayfa oturumu yaşatır)
+  POST /api/ayril   {"sayfa":..}               -> 204   (sayfa kapandı: başka açık sayfa yoksa oturum düşer)
+  POST /api/cikis                              -> 204   (oturumu hemen kapatır, çerezi siler)
   POST /api/open    {"cols":..,"rows":..}      -> {"sid":..}   (tmux "main" oturumuna bağlanır)
   GET  /api/read    ?sid=&offset=              -> ham çıktı; X-Start / X-Next / X-Alive başlıkları
   POST /api/write   ?sid=   (gövde: girdi)
@@ -50,7 +53,12 @@ MAX_UPLOAD = 25 * 1024 * 1024
 IMAGE_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp"}
 AUTH_FILE = os.environ.get("KUTUPHANE_AUTH", "/etc/kutuphane/auth.json")
 COOKIE = "bk_oturum"
-SESSION_TTL = 30 * 24 * 3600    # oturum çerezi 30 gün geçerli
+LOGIN_FILE = os.path.join(os.path.dirname(AUTH_FILE), "oturumlar.json")
+SESSION_TTL = 30 * 24 * 3600    # sayfa hiç kapanmasa bile oturum en fazla 30 gün yaşar
+LOGIN_START = 90                # girişten sonra ilk nabız bu sürede gelmeli (geçiş animasyonu + sayfa yükü)
+LOGIN_IDLE = 150                # bu kadar süre nabız gelmezse oturum düşer (arka plandaki sekme dakikada bir atar)
+LEAVE_GRACE = 15                # sayfa kapandıktan sonra oturumun düşmesine kalan süre (yenileme için pay)
+MAX_LOGINS = 16
 FAIL_WINDOW = 600               # bu sürede
 FAIL_MAX = 5                    # bu kadar hatalı giriş -> geçici blok (fail2ban da ayrıca izler)
 LOGIN_PAGE = "/kutuphane"
@@ -84,24 +92,116 @@ def load_auth():
         return None
 
 
-def sign(secret, user, exp):
-    return hmac.new(secret, f"{user}.{exp}".encode(), hashlib.sha256).hexdigest()
+def sign(secret, user, sid, exp):
+    return hmac.new(secret, f"{user}.{sid}.{exp}".encode(), hashlib.sha256).hexdigest()
+
+
+# Çerez tek başına yetmez: oturum sunucuda da yaşıyor olmalı. Açık sayfa /api/nabiz ile yaşatır;
+# sayfa kapanınca /api/ayril gelir, o da gelmezse (çökme, ağ kesintisi) sessizlik oturumu düşürür.
+logins = {}                     # oturum kimliği -> {"exp", "live", "left", "pages", "gone"}
+logins_lock = threading.Lock()
+
+
+def save_logins():
+    """logins_lock altında çağrılır. API yeniden başlayınca (ör. otomatik güncelleme) açık oturumlar düşmesin."""
+    data = {sid: s["exp"] for sid, s in logins.items() if not s["left"]}
+    try:
+        tmp = LOGIN_FILE + ".tmp"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f)
+        os.replace(tmp, LOGIN_FILE)
+    except OSError:
+        pass
+
+
+def load_logins():
+    try:
+        with open(LOGIN_FILE) as f:
+            data = json.load(f)
+        now = time.time()
+        with logins_lock:
+            for sid, exp in data.items():
+                if isinstance(exp, int) and exp > now:
+                    logins[sid] = {"exp": exp, "live": now + LOGIN_IDLE, "left": False, "pages": {}, "gone": set()}
+    except (OSError, ValueError, AttributeError):
+        pass
 
 
 def make_token(auth):
     user, _, _, secret = auth
-    exp = int(time.time()) + SESSION_TTL
-    return f"{exp}.{sign(secret, user, exp)}"
+    now = time.time()
+    sid = secrets.token_urlsafe(18)
+    exp = int(now) + SESSION_TTL
+    with logins_lock:
+        while len(logins) >= MAX_LOGINS:
+            del logins[min(logins, key=lambda k: logins[k]["live"])]
+        logins[sid] = {"exp": exp, "live": now + LOGIN_START, "left": False, "pages": {}, "gone": set()}
+        save_logins()
+    return f"{sid}.{exp}.{sign(secret, user, sid, exp)}"
 
 
-def valid_token(token):
+def token_sid(token):
+    """Çerezin imzası ve süresi tutuyorsa oturum kimliği; oturumun yaşayıp yaşamadığına bakmaz."""
     auth = load_auth()
-    if not auth or not token or "." not in token:
-        return False
-    exp, sig = token.split(".", 1)
-    if not exp.isdigit() or int(exp) < time.time():
-        return False
-    return hmac.compare_digest(sig, sign(auth[3], auth[0], int(exp)))
+    p = (token or "").split(".")
+    if not auth or len(p) != 3 or not p[1].isdigit() or int(p[1]) < time.time():
+        return None
+    if not hmac.compare_digest(p[2].encode(), sign(auth[3], auth[0], p[0], int(p[1])).encode()):
+        return None
+    return p[0]
+
+
+def login_alive(sid, touch=False):
+    """touch: korunan bir istek geldi, oturumu yaşat. Sayfadan çıkıldıysa yalnızca yeni bir nabız yaşatır."""
+    now = time.time()
+    with logins_lock:
+        s = logins.get(sid)
+        if not s or now >= min(s["exp"], s["live"]):
+            return False
+        if touch and not s["left"]:
+            s["live"] = now + LOGIN_IDLE
+        return True
+
+
+def login_beat(sid, page):
+    now = time.time()
+    with logins_lock:
+        s = logins.get(sid)
+        # kapanan sayfanın yolda kalmış nabzı oturumu geri diriltmesin
+        if not s or now >= min(s["exp"], s["live"]) or page in s["gone"]:
+            return
+        if len(s["pages"]) >= 32:
+            s["pages"] = {p: t for p, t in s["pages"].items() if now - t < LOGIN_IDLE}
+        s["pages"][page] = now
+        s["live"] = now + LOGIN_IDLE
+        if s["left"]:
+            s["left"] = False
+            save_logins()
+
+
+def login_leave(sid, page):
+    """Sayfa kapandı. Aynı oturumla açık başka sayfa yoksa oturum kısa süre sonra düşer;
+    süre, sayfa yenilendiyse yeni sayfanın nabzı yetişsin diye var."""
+    now = time.time()
+    with logins_lock:
+        s = logins.get(sid)
+        if not s:
+            return
+        s["pages"].pop(page, None)
+        if len(s["gone"]) < 64:
+            s["gone"].add(page)
+        if any(now - t < LOGIN_IDLE for t in s["pages"].values()):
+            return
+        s["left"] = True
+        s["live"] = min(s["live"], now + LEAVE_GRACE)
+        save_logins()
+
+
+def login_drop(sid):
+    with logins_lock:
+        if logins.pop(sid, None):
+            save_logins()
 
 
 fails = {}                      # ip -> hatalı giriş zamanları
@@ -435,6 +535,12 @@ def janitor():
                     s.close()
                     if not s.alive or now - s.last_seen > IDLE_TIMEOUT + 30:
                         sessions.pop(sid, None)
+        with logins_lock:
+            dead = [sid for sid, s in logins.items() if now >= min(s["exp"], s["live"])]
+            for sid in dead:
+                del logins[sid]
+            if dead:
+                save_logins()
         if now - panel["seen"] > PANEL_TIMEOUT:
             set_bar_hidden(False)
 
@@ -487,8 +593,10 @@ class Handler(BaseHTTPRequestHandler):
                 return v
         return None
 
-    def _authed(self):
-        return valid_token(self._cookie(COOKIE))
+    def _authed(self, touch=False):
+        """Geçerli ve yaşayan oturumun kimliği ya da None."""
+        sid = token_sid(self._cookie(COOKIE))
+        return sid if sid and login_alive(sid, touch) else None
 
     def _client_ip(self):
         # Caddy X-Forwarded-For'a gerçek istemci IP'sini yazar (dışarıdan gelen değere güvenmez)
@@ -518,9 +626,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(401, {"error": "INVALID_CREDENTIALS"})
         with fails_lock:
             fails.pop(ip, None)
-        secure = "" if self.headers.get("X-Forwarded-Proto") == "http" else "; Secure"
-        cookie = f"{COOKIE}={make_token(auth)}; Path=/; Max-Age={SESSION_TTL}; HttpOnly; SameSite=Lax{secure}"
+        # Max-Age yok: tarayıcı kapanınca çerez de gider; asıl sınırı sunucudaki oturum koyar
+        cookie = f"{COOKIE}={make_token(auth)}; Path=/; HttpOnly; SameSite=Lax{self._secure()}"
         return self._send(200, {"ok": True, "kullanici": auth[0]}, headers={"Set-Cookie": cookie})
+
+    def _secure(self):
+        return "" if self.headers.get("X-Forwarded-Proto") == "http" else "; Secure"
 
     def _same_origin(self):
         # CSRF koruması: özel başlık zorunlu (çapraz sitelerde preflight'a takılır) + Origin kontrolü
@@ -549,14 +660,14 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/yetki":
             # Caddy forward_auth: 2xx = geçsin. Tarayıcıda sayfa açılıyorsa vitrine yönlendir,
             # diğer istekleri (WebSocket, API, dosya) 403 ile kes. 401 değil: fail2ban saymasın.
-            if self._authed():
+            if self._authed(touch=True):
                 return self._send(204)
             accept = self.headers.get("Accept") or ""
             if self.headers.get("X-Forwarded-Method", "GET") == "GET" and "text/html" in accept:
                 return self._send(302, headers={"Location": LOGIN_PAGE})
             return self._send(403, {"error": "giris gerekli"})
         if url.path == "/api/oturum":
-            return self._send(200, {"giris": self._authed()})
+            return self._send(200, {"giris": bool(self._authed())})
         if url.path == "/api/sekmeler":
             if self.headers.get("X-Kutuphane") != "1":
                 return self._send(403, {"error": "forbidden"})
@@ -580,6 +691,22 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == "/api/giris":
                 return self._login()
+            if url.path in ("/api/nabiz", "/api/ayril", "/api/cikis"):
+                sid = self._authed()
+                if not sid:
+                    return self._send(403, {"error": "giris gerekli"})
+                if url.path == "/api/cikis":
+                    login_drop(sid)
+                    gone = f"{COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{self._secure()}"
+                    return self._send(204, headers={"Set-Cookie": gone})
+                try:
+                    page = json.loads(self._body(4096) or b"{}").get("sayfa")
+                except (ValueError, AttributeError):
+                    page = None
+                if not isinstance(page, str) or not 0 < len(page) <= 64:
+                    return self._send(400, {"error": "bad request"})
+                (login_beat if url.path == "/api/nabiz" else login_leave)(sid, page)
+                return self._send(204)
             if url.path == "/api/open":
                 req = json.loads(self._body() or b"{}")
                 with sessions_lock:
@@ -641,6 +768,7 @@ if __name__ == "__main__":
         set_password(sys.argv[2], sys.stdin.read().rstrip("\n"))
         sys.exit(0)
     signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+    load_logins()
     threading.Thread(target=janitor, daemon=True).start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True

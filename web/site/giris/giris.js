@@ -100,7 +100,7 @@ const L=[
  ()=>dots(t('lUser'),22)+`<span class="v">${escH(u)}</span>`,
  ()=>dots(t('lPw'),22)+`scrypt n=16384 r=8 p=1 <span class="ok">${t('lMatch')}</span>`,
  ()=>dots(t('lSig'),22)+`hmac-sha256 <span class="v">${h.slice(0,16)}…${h.slice(-8)}</span>`,
- ()=>dots(t('lCookie'),22)+`bk_oturum · httponly · samesite=lax · 30d`,
+ ()=>dots(t('lCookie'),22)+`bk_oturum · httponly · samesite=lax · session`,
  ()=>dots(t('lRtt'),22)+`<span class="v">${Math.max(1,Math.round(rtt||0))} ms</span>`,
  ()=>dots(t('lGate'),22)+`forward_auth /api/yetki <span class="ok">204</span>`,
  ()=>dots(t('lRoom'),22)+`main <span class="ok">${t('lReady')}</span>`];
