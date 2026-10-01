@@ -71,6 +71,69 @@
     if (files.length) { e.preventDefault(); e.stopImmediatePropagation(); handleImages(files); }
   }, true);
 
+  // ---------- kopyalama ----------
+  // Fareyle sürükleyince (ya da çift/üç tıklayınca) seçimi tmux yapar ve bırakınca metni OSC 52 ile
+  // tarayıcıya yollar. Sayfa bunu panoya yazmazsa seçim kaybolur ve hiçbir şey kopyalanmamış olur.
+  var bekleyenKopya = null;
+  function eskiKopya(metin) {
+    var kutu = document.createElement('textarea'), oldu = false;
+    kutu.value = metin;
+    kutu.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(kutu);
+    kutu.select();
+    try { oldu = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(kutu);
+    var t = term();
+    try { if (t) t.focus(); } catch (e) {}
+    return oldu;
+  }
+  function panoyaYaz(metin) {
+    var yeni = navigator.clipboard && navigator.clipboard.writeText;
+    return (yeni ? navigator.clipboard.writeText(metin) : Promise.reject()).catch(function () {
+      if (!eskiKopya(metin)) throw new Error('pano');
+    });
+  }
+  function kopyalandi(metin) { toast('Kopyalandı (' + metin.length + ' karakter)', 1500); }
+  function kopyala(metin) {
+    if (!metin) return;
+    panoyaYaz(metin).then(function () {
+      bekleyenKopya = null;
+      kopyalandi(metin);
+    }, function () {
+      // tarayıcı şu an izin vermedi (ör. Safari): ilk tıklama ya da tuşta yeniden denenir
+      bekleyenKopya = metin;
+      toast('Kopyalamak için bir kez tıkla ya da bir tuşa bas', 6000);
+    });
+  }
+  ['pointerdown', 'keydown'].forEach(function (olay) {
+    document.addEventListener(olay, function () {
+      if (bekleyenKopya === null) return;
+      var metin = bekleyenKopya;
+      bekleyenKopya = null;
+      panoyaYaz(metin).then(function () { kopyalandi(metin); }, function () {});
+    }, true);
+  });
+  function osc52(veri) {
+    var i = veri.indexOf(';'), yuk = veri.slice(i + 1);
+    if (i < 0 || yuk === '?') return true;   // pano okuma isteği: asla yanıtlanmaz
+    try {
+      var ikili = atob(yuk), bayt = new Uint8Array(ikili.length);
+      for (var k = 0; k < ikili.length; k++) bayt[k] = ikili.charCodeAt(k);
+      kopyala(new TextDecoder().decode(bayt));
+    } catch (e) {}
+    return true;
+  }
+  // Terminal sayfadan sonra kurulur (ve yeniden kurulabilir): hazır olunca bağlan
+  var kancali = null;
+  function kancala() {
+    var t = term();
+    if (!t || t === kancali || !t.parser || !t.parser.registerOscHandler) return;
+    kancali = t;
+    try { t.parser.registerOscHandler(52, osc52); } catch (e) {}
+  }
+  kancala();
+  setInterval(kancala, 1000);
+
   // ---------- oturum: sayfa açıkken yaşar, sayfadan çıkınca biter ----------
   // Sunucu oturumu ancak nabız geldikçe açık tutar. Sayfa kapanınca haber verilir; haber ulaşmazsa
   // (çökme, ağ kesintisi) nabız kesildiği için oturum yine kendiliğinden düşer.
@@ -159,7 +222,7 @@
         '100%{transform:scale(1) rotate(180deg);box-shadow:0 0 0 9px rgba(166,227,161,0)}}' +
       '#kp #kp-yeni.kp-don{animation:kp-don .5s cubic-bezier(.34,1.56,.64,1)}' +
       '#kp-liste{flex:1;min-height:0;overflow-y:auto;padding:0 8px;scrollbar-width:thin}' +
-      '.kp-s{display:flex;align-items:center;gap:9px;width:100%;margin:0 0 4px;padding:7px 6px 7px 7px;' +
+      '.kp-s{position:relative;display:flex;align-items:center;gap:9px;width:100%;margin:0 0 4px;padding:7px 6px 7px 11px;' +
         'border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .15s,border-color .15s}' +
       '@keyframes kp-gir{0%{opacity:0;max-height:0;padding-top:0;padding-bottom:0;margin-bottom:0;' +
         'transform:translateX(-14px);background-color:rgba(166,227,161,.2)}' +
@@ -170,29 +233,35 @@
       '.kp-no{display:none;flex:none;width:24px;height:24px;line-height:24px;text-align:center;border-radius:6px;' +
         'background:#1f1f23;color:#8b8b94;font-weight:700}' +
       '.kp-aktif .kp-no{background:#89b4fa;color:#111113}' +
-      '.kp-nokta{flex:none;width:8px;height:8px;margin:0 2px;border-radius:50%;background:#3a3a41}' +
-      '.kp-mesgul .kp-nokta{background:#a6e3a1;box-shadow:0 0 6px rgba(166,227,161,.6)}' +
+      // durum çizgisi: yeşil = sekmede bir şey çalışıyor, yanıp sönen sarı = Claude seni bekliyor
+      '.kp-s:before{content:"";position:absolute;left:2px;top:10px;bottom:10px;width:3px;border-radius:2px;' +
+        'background:transparent;transition:background .3s}' +
+      '.kp-mesgul:before{background:#a6e3a1;box-shadow:0 0 6px rgba(166,227,161,.5)}' +
       '.kp-mesgul .kp-no{box-shadow:inset 0 -2px 0 #a6e3a1}' +
-      '.kp-sira{color:#6b6b74;margin-right:6px;font-weight:400}' +
       '@keyframes kp-yan{50%{opacity:.2}}' +
-      '.kp-bekliyor .kp-nokta{background:#f9e2af;box-shadow:0 0 6px rgba(249,226,175,.7);animation:kp-yan 1s ease-in-out infinite}' +
+      '.kp-bekliyor:before{background:#f9e2af;box-shadow:0 0 6px rgba(249,226,175,.6);animation:kp-yan 1s ease-in-out infinite}' +
       '.kp-bekliyor .kp-no{background:#f9e2af;color:#111113;animation:kp-yan 1s ease-in-out infinite}' +
       '.kp-bekliyor .kp-ad{color:#f9e2af}' +
-      '@media (prefers-reduced-motion:reduce){.kp-bekliyor .kp-nokta,.kp-bekliyor .kp-no,.kp-s.kp-gir,' +
+      '@media (prefers-reduced-motion:reduce){.kp-bekliyor:before,.kp-bekliyor .kp-no,.kp-s.kp-gir,' +
         '#kp #kp-yeni.kp-don,.kp-yuksek svg,.kp-gb i.kp-parla:after{animation:none}' +
         '.kp-hd,.kp-gb i,#kp #kp-yeni:before,#kp #kp-yeni:after{transition:none}}' +
       '#kp .kp-giris{width:100%;min-width:0;font:inherit;color:#fff;background:#111113;border:1px solid #89b4fa;' +
         'border-radius:4px;padding:1px 4px;outline:none;user-select:text;-webkit-user-select:text}' +
-      '.kp-ram{flex:none;color:#8b8b94;font-size:11px}' +
+      '.kp-ram{flex:none;align-self:flex-end;color:#8b8b94;font-size:11px;line-height:1.35}' +
       '.kp-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}' +
       '.kp-ad,.kp-alt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
       '.kp-ad{color:#e4e4e7}' +
       '.kp-aktif .kp-ad{font-weight:700;color:#fff}' +
       '.kp-alt{color:#8b8b94;font-size:11px}' +
       '.kp-dal{color:#a6e3a1}' +
-      '#kp .kp-x{flex:none;min-width:22px;height:22px;padding:0 5px;border-radius:6px;color:#6b6b74;font-size:14px}' +
-      '#kp .kp-x:hover{background:#3a3a41;color:#f38ba8}' +
-      '#kp .kp-x.kp-emin{background:#f38ba8;color:#111113;font-weight:700;font-size:12px}' +
+      // kapatma düğmesi satırın sağ üstünde, fare satıra gelince belirir (dokunmatikte hep görünür)
+      '#kp .kp-x{position:absolute;top:5px;right:5px;min-width:18px;height:18px;padding:0 4px;border-radius:5px;' +
+        'background:#34343a;color:#a1a1aa;font-size:13px;line-height:18px;opacity:0;transform:scale(.7);' +
+        'pointer-events:none;transition:opacity .15s,transform .15s,background .15s,color .15s}' +
+      '#kp .kp-s:hover .kp-x,#kp .kp-x.kp-emin{opacity:1;transform:none;pointer-events:auto}' +
+      '@media (hover:none){#kp .kp-x{opacity:1;transform:none;pointer-events:auto}.kp-ad{padding-right:22px}}' +
+      '#kp .kp-x:hover{background:#45454d;color:#f38ba8}' +
+      '#kp .kp-x.kp-emin{background:#f38ba8;color:#111113;font-weight:700;font-size:11px}' +
       '#kp-sis{flex:none;display:flex;align-items:center;gap:12px;padding:10px 12px 4px 10px;' +
         'border-top:1px solid #232327;color:#8b8b94;font-size:11px}' +
       '.kp-halka{position:relative;flex:none;width:58px;height:58px}' +
@@ -222,14 +291,14 @@
       '.kp-gb i.kp-parla:after{content:"";position:absolute;left:0;top:0;bottom:0;width:40%;' +
         'background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:kp-parla .9s ease-out forwards}' +
       '#kp-alt{flex:none;display:flex;gap:6px;padding:8px}' +
-      '#kp #kp-bol,#kp #kp-cikis,#kp #kp-daralt{padding:7px 8px;border-radius:8px;border:1px solid #232327;color:#8b8b94;' +
+      '#kp #kp-cikis,#kp #kp-daralt{padding:7px 8px;border-radius:8px;border:1px solid #232327;color:#8b8b94;' +
         'transition:background .15s,border-color .15s,color .15s}' +
-      '#kp #kp-bol{flex:1;text-align:left}' +
+      '#kp #kp-cikis{flex:1;text-align:left}' +
       '#kp #kp-daralt{min-width:30px}' +
-      '#kp #kp-bol:hover,#kp #kp-cikis:hover,#kp #kp-daralt:hover{background:#1a1a1d;border-color:#34343a;color:#e4e4e7}' +
+      '#kp #kp-cikis:hover,#kp #kp-daralt:hover{background:#1a1a1d;border-color:#34343a;color:#e4e4e7}' +
       '#kp #kp-cikis:hover{color:#f38ba8}' +
-      '#kp.kp-dar #kp-baslik,#kp.kp-dar .kp-m,#kp.kp-dar .kp-x,#kp.kp-dar #kp-bol,#kp.kp-dar #kp-cikis,' +
-        '#kp.kp-dar .kp-nokta,#kp.kp-dar .kp-ram,#kp.kp-dar #kp-sis{display:none}' +
+      '#kp.kp-dar #kp-baslik,#kp.kp-dar .kp-m,#kp.kp-dar .kp-x,#kp.kp-dar #kp-cikis,' +
+        '#kp.kp-dar .kp-s:before,#kp.kp-dar .kp-ram,#kp.kp-dar #kp-sis{display:none}' +
       '#kp.kp-dar .kp-no{display:block}' +
       '#kp.kp-dar #kp-ust{justify-content:center;padding:10px 0 8px}' +
       '#kp.kp-dar #kp-liste{padding:0 6px}' +
@@ -255,13 +324,13 @@
       '<span class="kp-gb"><i></i></span></div>' +
       '</div></div>' +
       '<div id="kp-alt">' +
-      '<button id="kp-bol" type="button" title="Sekmeyi yan yana böl">böl</button>' +
       '<button id="kp-cikis" type="button" title="Oturumu kapat">çıkış</button>' +
       '<button id="kp-daralt" type="button" title="Paneli daralt / genişlet"></button></div>';
     document.body.appendChild(kp);
     var liste = kp.querySelector('#kp-liste');
     var daralt = kp.querySelector('#kp-daralt');
     var yeni = kp.querySelector('#kp-yeni');
+    var baslik = kp.querySelector('#kp-baslik');
     yeni.addEventListener('animationend', function () { yeni.classList.remove('kp-don'); });
 
     function sigdir() {
@@ -301,8 +370,8 @@
       satirlar = {};
       duzenlenen = null;
       sekmeler.forEach(function (s) {
-        var r = { satir: yap('div', 'kp-s'), nokta: yap('span', 'kp-nokta'), no: yap('span', 'kp-no'),
-                  sira: yap('span', 'kp-sira'), isim: yap('span', ''), alt: yap('span', 'kp-alt'),
+        var r = { satir: yap('div', 'kp-s'), no: yap('span', 'kp-no'),
+                  isim: yap('span', ''), alt: yap('span', 'kp-alt'),
                   yol: yap('span', ''), dal: yap('span', 'kp-dal'), ram: yap('span', 'kp-ram'), x: null };
         var m = yap('span', 'kp-m'), ad = yap('span', 'kp-ad');
         r.satir.setAttribute('data-no', s.no);
@@ -311,13 +380,11 @@
           delete giren[s.no];
           r.satir.classList.remove('kp-gir');
         });
-        ad.appendChild(r.sira);
         ad.appendChild(r.isim);
         r.alt.appendChild(r.yol);
         r.alt.appendChild(r.dal);
         m.appendChild(ad);
         m.appendChild(r.alt);
-        r.satir.appendChild(r.nokta);
         r.satir.appendChild(r.no);
         r.satir.appendChild(m);
         r.satir.appendChild(r.ram);
@@ -382,16 +449,16 @@
           try { satirlar[s.no].satir.scrollIntoView({ block: 'nearest' }); } catch (e) {}
         });
       }
+      yaz(baslik, 'Sekmeler (' + son.length + ')');
       son.forEach(function (s) {
         var r = satirlar[s.no];
         var sinif = 'kp-s' + (s.aktif ? ' kp-aktif' : '') + (s.bekliyor ? ' kp-bekliyor' : (s.cpu >= 5 ? ' kp-mesgul' : '')) +
           (giren[s.no] ? ' kp-gir' : '');
         if (r.satir.className !== sinif) r.satir.className = sinif;
-        r.satir.title = s.no + ' ' + gorunenAd(s) + ' — ' + s.dizin + (s.dal ? ' (' + s.dal + ')' : '') +
+        r.satir.title = gorunenAd(s) + ' — ' + s.dizin + (s.dal ? ' (' + s.dal + ')' : '') +
           (s.ram ? ' — RAM ' + boy(s.ram) + ', CPU %' + (s.cpu || 0) : '') +
           (s.bekliyor ? ' — seni bekliyor' : '') + ' (ad vermek için çift tıkla)';
         yaz(r.no, String(s.no));
-        yaz(r.sira, String(s.no));
         yaz(r.isim, gorunenAd(s) + (s.bolme > 1 ? ' (' + s.bolme + ')' : ''));
         // ad uygulamanın başlığından geliyorsa hangi programın çalıştığı alt satırda kalsın
         yaz(r.yol, (gorunenAd(s) !== s.ad && s.komut ? s.komut + ' · ' : '') + s.dizin);
@@ -516,10 +583,6 @@
         return odak();
       }
       if (el.closest('#kp-cikis')) return cikis();
-      if (el.closest('#kp-bol')) {
-        islem('bol');
-        return odak();
-      }
       var x = el.closest('[data-kapat]');
       if (x) {
         var no = Number(x.getAttribute('data-kapat'));
