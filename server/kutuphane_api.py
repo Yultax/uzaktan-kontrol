@@ -14,9 +14,10 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/resize  ?sid=   {"cols":..,"rows":..}
   POST /api/close   ?sid=
   POST /api/upload  (gövde: görsel)            -> {"path":..}
-  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme","ram","cpu"}],
+  GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme","ram","cpu",
+                                                                 "baslik","adli","bekliyor"}],
                                                    "sistem":{"cpu","ram","ram_toplam","disk"}}
-  POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk","no":..} -> güncel sekme listesi  (sol panel)
+  POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk|adlandir","no":..,"ad":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
 import hashlib
@@ -200,8 +201,9 @@ sessions_lock = threading.Lock()
 
 
 # ---------- sekmeler (sol panel) ----------
-WIN_FIELDS = ("window_index", "window_active", "window_panes", "window_name",
-              "pane_current_command", "pane_current_path")
+# pane_title en sonda: içinde sekme karakteri olsa bile diğer alanlar kaymasın
+WIN_FIELDS = ("window_index", "window_active", "window_panes", "automatic-rename", "@kp_durum",
+              "window_name", "pane_current_command", "pane_current_path", "host", "pane_title")
 WIN_FORMAT = "\t".join("#{%s}" % f for f in WIN_FIELDS)
 
 
@@ -349,18 +351,39 @@ def panel_state():
     return {"sekmeler": wins, "sistem": system}
 
 
+def clean_title(title, host):
+    """Uygulamanın (ör. Claude) sekmeye verdiği başlık; tmux'un varsayılanı (makine adı) sayılmaz."""
+    title = title.strip()
+    if not title or title == host or title == host.split(".")[0]:
+        return ""
+    # baştaki durum işaretini (✳, dönen nokta vb.) at
+    head, _, rest = title.partition(" ")
+    if rest and not any(c.isalnum() for c in head):
+        title = rest.strip()
+    return title[:80]
+
+
 def list_windows():
     wins = []
     for line in tmux("list-windows", "-t", "=" + TMUX_SESSION, "-F", WIN_FORMAT).splitlines():
-        p = line.split("\t")
+        p = line.split("\t", len(WIN_FIELDS) - 1)
         if len(p) != len(WIN_FIELDS) or not p[0].isdigit():
             continue
-        path = p[5]
+        no, active, path = int(p[0]), p[1] == "1", p[7]
+        waiting = p[4] == "bekliyor"
+        if waiting and active:
+            # sekmeye bakıldı: Claude'un "seni bekliyorum" işaretini kaldır
+            waiting = False
+            try:
+                tmux("set-option", "-wu", "-t", "=%s:%d" % (TMUX_SESSION, no), "@kp_durum")
+            except OSError:
+                pass
         branch = git_branch(path) if path else ""
         if path == HOME or path.startswith(HOME + "/"):
             path = "~" + path[len(HOME):]
-        wins.append({"no": int(p[0]), "aktif": p[1] == "1", "bolme": int(p[2] or 1),
-                     "ad": p[3], "komut": p[4], "dizin": path, "dal": branch})
+        wins.append({"no": no, "aktif": active, "bolme": int(p[2] or 1), "adli": p[3] == "0",
+                     "bekliyor": waiting, "ad": p[5], "komut": p[6], "dizin": path, "dal": branch,
+                     "baslik": clean_title(p[9], p[8])})
     return wins
 
 
@@ -377,12 +400,22 @@ def window_action(req):
     elif islem == "cubuk":      # panel kapatıldı: üstteki çubuğu beklemeden geri getir
         panel["seen"] = 0
         set_bar_hidden(False)
-    elif islem in ("sec", "kapat"):
+    elif islem in ("sec", "kapat", "adlandir"):
         wins = list_windows()
         if isinstance(no, bool) or not isinstance(no, int) or no not in [w["no"] for w in wins]:
             return 404, {"error": "sekme yok"}
         if islem == "sec":
             tmux("select-window", "-t", target + str(no))
+        elif islem == "adlandir":
+            name = req.get("ad")
+            if not isinstance(name, str):
+                return 400, {"error": "bad request"}
+            name = "".join(c for c in name if c.isprintable()).strip()[:40]
+            if name:
+                # tmux adı biçim olarak açar: # işaretini kaçır ki #{...} / #(...) çalışmasın
+                tmux("rename-window", "-t", target + str(no), "--", name.replace("#", "##"))
+            else:               # boş ad: tmux yeniden kendisi adlandırsın
+                tmux("set-option", "-w", "-t", target + str(no), "automatic-rename", "on")
         elif len(wins) < 2:
             return 409, {"error": "son sekme kapatilamaz"}
         else:

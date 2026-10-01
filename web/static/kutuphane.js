@@ -122,6 +122,13 @@
       '.kp-mesgul .kp-nokta{background:#a6e3a1;box-shadow:0 0 6px rgba(166,227,161,.6)}' +
       '.kp-mesgul .kp-no{box-shadow:inset 0 -2px 0 #a6e3a1}' +
       '.kp-sira{color:#6b6b74;margin-right:6px;font-weight:400}' +
+      '@keyframes kp-yan{50%{opacity:.2}}' +
+      '.kp-bekliyor .kp-nokta{background:#f9e2af;box-shadow:0 0 6px rgba(249,226,175,.7);animation:kp-yan 1s ease-in-out infinite}' +
+      '.kp-bekliyor .kp-no{background:#f9e2af;color:#111113;animation:kp-yan 1s ease-in-out infinite}' +
+      '.kp-bekliyor .kp-ad{color:#f9e2af}' +
+      '@media (prefers-reduced-motion:reduce){.kp-bekliyor .kp-nokta,.kp-bekliyor .kp-no{animation:none}}' +
+      '#kp .kp-giris{width:100%;min-width:0;font:inherit;color:#fff;background:#111113;border:1px solid #89b4fa;' +
+        'border-radius:4px;padding:1px 4px;outline:none;user-select:text;-webkit-user-select:text}' +
       '.kp-ram{flex:none;color:#8b8b94;font-size:11px}' +
       '.kp-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}' +
       '.kp-ad,.kp-alt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
@@ -206,6 +213,7 @@
     function kur(sekmeler) {
       liste.textContent = '';
       satirlar = {};
+      duzenlenen = null;
       sekmeler.forEach(function (s) {
         var r = { satir: yap('div', 'kp-s'), nokta: yap('span', 'kp-nokta'), no: yap('span', 'kp-no'),
                   sira: yap('span', 'kp-sira'), isim: yap('span', ''), alt: yap('span', 'kp-alt'),
@@ -234,19 +242,57 @@
       });
     }
 
+    // Elle verilen ad önce gelir; yoksa uygulamanın (ör. Claude) sekmeye verdiği başlık, o da yoksa tmux adı
+    function gorunenAd(s) { return s.adli ? s.ad : (s.baslik || s.ad); }
+
+    // Çift tıkla yeniden adlandır: Enter kaydeder, Esc vazgeçer, boş bırakmak otomatik ada döndürür
+    var duzenlenen = null;
+    function adlandir(no) {
+      var r = satirlar[no], s = son.filter(function (x) { return x.no === no; })[0];
+      if (!r || !s || duzenlenen !== null) return;
+      duzenlenen = no;
+      var giris = yap('input', 'kp-giris');
+      giris.type = 'text';
+      giris.maxLength = 40;
+      giris.value = s.adli ? s.ad : '';
+      giris.placeholder = gorunenAd(s);
+      r.isim.style.display = 'none';
+      r.isim.parentNode.appendChild(giris);
+      var bitti = false;
+      function bitir(kaydet) {
+        if (bitti) return;
+        bitti = true;
+        duzenlenen = null;
+        var ad = giris.value.trim();
+        if (giris.parentNode) giris.parentNode.removeChild(giris);
+        r.isim.style.display = '';
+        if (kaydet && (ad || s.adli)) islem('adlandir', no, ad);
+        odak();
+      }
+      giris.addEventListener('keydown', function (e) {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); bitir(true); }
+        else if (e.key === 'Escape') { e.preventDefault(); bitir(false); }
+      });
+      giris.addEventListener('blur', function () { bitir(true); });
+      giris.focus();
+    }
+
     function ciz() {
       var yapi = son.map(function (s) { return s.no; }).join(',');
       if (yapi !== kurulu) { kur(son); kurulu = yapi; }
       son.forEach(function (s) {
         var r = satirlar[s.no];
-        var sinif = 'kp-s' + (s.aktif ? ' kp-aktif' : '') + (s.cpu >= 5 ? ' kp-mesgul' : '');
+        var sinif = 'kp-s' + (s.aktif ? ' kp-aktif' : '') + (s.bekliyor ? ' kp-bekliyor' : (s.cpu >= 5 ? ' kp-mesgul' : ''));
         if (r.satir.className !== sinif) r.satir.className = sinif;
-        r.satir.title = s.no + ' ' + s.ad + ' — ' + s.dizin + (s.dal ? ' (' + s.dal + ')' : '') +
-          (s.ram ? ' — RAM ' + boy(s.ram) + ', CPU %' + (s.cpu || 0) : '');
+        r.satir.title = s.no + ' ' + gorunenAd(s) + ' — ' + s.dizin + (s.dal ? ' (' + s.dal + ')' : '') +
+          (s.ram ? ' — RAM ' + boy(s.ram) + ', CPU %' + (s.cpu || 0) : '') +
+          (s.bekliyor ? ' — seni bekliyor' : '') + ' (ad vermek için çift tıkla)';
         yaz(r.no, String(s.no));
         yaz(r.sira, String(s.no));
-        yaz(r.isim, s.ad + (s.bolme > 1 ? ' (' + s.bolme + ')' : ''));
-        yaz(r.yol, s.dizin);
+        yaz(r.isim, gorunenAd(s) + (s.bolme > 1 ? ' (' + s.bolme + ')' : ''));
+        // ad uygulamanın başlığından geliyorsa hangi programın çalıştığı alt satırda kalsın
+        yaz(r.yol, (gorunenAd(s) !== s.ad && s.komut ? s.komut + ' · ' : '') + s.dizin);
         yaz(r.dal, s.dal ? '  ' + s.dal : '');
         yaz(r.ram, boy(s.ram));
         if (r.x) {
@@ -291,11 +337,11 @@
         .catch(function () {});
     }
 
-    function islem(ad, no) {
+    function islem(ad, no, yeniAd) {
       return fetch('/api/sekme', {
         method: 'POST',
         headers: { 'X-Kutuphane': '1', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ islem: ad, no: no }),
+        body: JSON.stringify({ islem: ad, no: no, ad: yeniAd }),
       }).then(function (r) {
         return r.json().then(function (j) {
           if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
@@ -313,10 +359,18 @@
     }
 
     // Panele basmak terminalin odağını almasın
-    kp.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    kp.addEventListener('mousedown', function (e) {
+      if (!e.target.closest('.kp-giris')) e.preventDefault();
+    });
+
+    kp.addEventListener('dblclick', function (e) {
+      var satir = e.target.closest('.kp-s');
+      if (satir && !e.target.closest('[data-kapat]') && !dar) adlandir(Number(satir.getAttribute('data-no')));
+    });
 
     kp.addEventListener('click', function (e) {
       var el = e.target;
+      if (el.closest('.kp-giris')) return;
       if (el.closest('#kp-daralt')) {
         dar = !dar;
         try { localStorage.setItem('kutuphane.panel.dar', dar ? '1' : '0'); } catch (err) {}
