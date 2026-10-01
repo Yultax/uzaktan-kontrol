@@ -233,6 +233,32 @@ EOF
 touch /var/log/caddy/access.log
 chown caddy:caddy /var/log/caddy/access.log
 
+echo "==> Otomatik guncelleme (3 dakikada bir GitHub main'e bakar; site dosyalari + API)"
+fetch guncelle.sh /usr/local/sbin/kutuphane-guncelle
+chmod 755 /usr/local/sbin/kutuphane-guncelle
+cat >/etc/systemd/system/kutuphane-guncelle.service <<'EOF'
+[Unit]
+Description=kutuphane otomatik guncelleme (GitHub main -> site dosyalari + API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/kutuphane-guncelle
+EOF
+cat >/etc/systemd/system/kutuphane-guncelle.timer <<'EOF'
+[Unit]
+Description=kutuphane otomatik guncellemeyi 3 dakikada bir calistir
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=3min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target
+EOF
+
 echo "==> Claude Code ($DEV_USER için)"
 sudo -iu "$DEV_USER" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
 grep -q '.local/bin' "/home/$DEV_USER/.bashrc" || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "/home/$DEV_USER/.bashrc"
@@ -249,6 +275,7 @@ systemctl restart kutuphane-api  # yeniden kurulumda yeni API kodu yüklensin
 systemctl restart caddy
 systemctl enable fail2ban
 systemctl restart fail2ban
+systemctl enable --now kutuphane-guncelle.timer
 
 echo
 echo "================ KURULUM TAMAM ================"

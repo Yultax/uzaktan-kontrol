@@ -5,7 +5,10 @@ VDS'e tarayıcıdan terminal erişimi. Dışarıdan bilkenters'ın "Kütüphane"
 ## Canlı sistem
 
 - Adres: https://kutuphane.bilkenters.com — VPS `45.141.150.210` (Ubuntu 24.04), Caddy doğrudan bu IP'de. Vercel'de şu an sadece DNS kaydı var (`bilkenters.com` DNS'i Vercel'de, alan adı Unstoppable Domains'te).
-- Sunucuya yalnızca `kurulum.sh` ile kurulum yapılır; betik dosyaları GitHub'daki `main`'in son commit'inden çeker. Push etmek sunucuyu **güncellemez**: sunucu tarafı değişiklik ancak sunucuda `kurulum.sh` yeniden çalışınca (ya da kullanıcının onayıyla elle kopyalanınca) yayına girer. Bunu kullanıcıya her seferinde açıkça söyle.
+- Kurulum `kurulum.sh` ile yapılır; betik dosyaları GitHub'daki `main`'in son commit'inden çeker.
+- Otomatik güncelleme: `guncelle.sh` sunucuda `/usr/local/sbin/kutuphane-guncelle` olarak kurulu, `kutuphane-guncelle.timer` 3 dakikada bir çalıştırır. `main`'e push edilen `web/site/`, `web/yedek.html`, `web/test.html`, `web/static/kutuphane.js` ve `server/kutuphane_api.py` birkaç dakika içinde **kendiliğinden yayına girer**; yani `main`'e push etmek canlıya almak demektir. API değiştiyse servis yeniden başlar, sağlık kontrolünden geçemezse eski dosyaya dönülür ve o commit atlanır (`/var/lib/kutuphane/hatali`). Günlük: `journalctl -u kutuphane-guncelle`.
+- Otomatik güncellemenin **dokunmadığı** her şey (Caddyfile, ttyd, systemd birimleri, fail2ban, `guncelle.sh`'nin kendisi, `kurulum.sh`) ancak sunucuda `kurulum.sh` yeniden çalışınca yayına girer. Bir değişikliğin hangi yoldan yayına gireceğini kullanıcıya her seferinde açıkça söyle.
+- Kullanıcının sunucuya tek erişim yolu çoğu zaman bu sitedeki terminaldir (SSH yalnızca anahtarla). Girişi ya da Caddy → ttyd → tmux zincirini bozabilecek değişiklikten önce geri dönüş yolunu planla.
 - Sunucuda yeniden kurulum (root olarak, sunucuda): `curl -fsSLo k https://raw.githubusercontent.com/Yultax/uzaktan-kontrol/main/kurulum.sh; bash k` — şifre ve alan adı sorar (alan adı: `kutuphane.bilkenters.com`).
 
 ## Yapı

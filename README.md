@@ -46,7 +46,11 @@ journalctl -u caddy -f                  # sertifika / erişim logları
 fail2ban-client status caddy-auth       # banlanan IP'ler
 fail2ban-client set caddy-auth unbanip 1.2.3.4
 nano /etc/caddy/Caddyfile               # alan adı / şifre değişikliği, sonra: systemctl reload caddy
+systemctl list-timers kutuphane-guncelle.timer   # otomatik güncelleme ne zaman çalıştı / çalışacak
+journalctl -u kutuphane-guncelle -n 20           # son güncellemeler
 ```
+
+**Otomatik güncelleme:** sunucu 3 dakikada bir GitHub'daki `main`'e bakar (`guncelle.sh`); yeni commit varsa site dosyalarını (`web/site`, `yedek.html`, `test.html`, `static/kutuphane.js`) ve API'yi yeniler. Caddyfile, ttyd ve paketlere dokunmaz; onlar için `kurulum.sh` yeniden çalıştırılır. Kapatmak: `systemctl disable --now kutuphane-guncelle.timer`.
 
 Şifre değiştirmek (eski oturumlar da düşer):
 
