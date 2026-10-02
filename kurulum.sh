@@ -210,6 +210,7 @@ cat <<'EOF'
 	}
 	@herkes path /api/giris /api/oturum
 	handle @herkes {
+		header >Cache-Control "no-store"
 		# Giriş deneme sınırı IP başına: API'ye tünelin değil gerçek istemcinin IP'si gitsin
 		reverse_proxy 127.0.0.1:7682 {
 			header_up X-Forwarded-For {client_ip}
@@ -217,6 +218,9 @@ cat <<'EOF'
 	}
 	# Geri kalan her şey oturum ister; yoksa sayfalar /kutuphane'ye yönlenir
 	handle {
+		# Oturum arkasındaki hiçbir yanıt tarayıcıda ya da Cloudflare'de saklanmasın: Cloudflare .js/.css'i
+		# kendiliğinden önbelleğe alır ve oturum sormadan herkese verir
+		header >Cache-Control "no-store"
 		forward_auth 127.0.0.1:7682 {
 			uri /api/yetki
 			header_up -Upgrade
