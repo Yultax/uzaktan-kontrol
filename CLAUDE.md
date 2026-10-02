@@ -4,7 +4,7 @@ VDS'e tarayıcıdan terminal erişimi. Dışarıdan bilkenters'ın "Kütüphane"
 
 ## Canlı sistem
 
-- Adres: https://bilkent.codes — Cloudflare Tunnel üzerinden. Alan adı name.com'da, DNS'i Cloudflare'de (hesap `Officialyultax@gmail.com`, nameserver `lakas` / `simone.ns.cloudflare.com`). Tünel `kutuphane` (ID `ff1bdcb4-9851-47fb-af67-b829ee0ed5c1`), rotası `bilkent.codes → http://127.0.0.1:7680`; rota ve DNS kaydı Cloudflare panelinde durur (Networking → Tunnels), sunucuda yalnızca jetonla kurulu `cloudflared` servisi var.
+- Adres: https://bilkent.codes — Cloudflare Tunnel üzerinden. Alan adı name.com'da, DNS'i Cloudflare'de (hesap `Officialyultax@gmail.com`, nameserver `lakas` / `simone.ns.cloudflare.com`). Tünel `kutuphane` (ID `ff1bdcb4-9851-47fb-af67-b829ee0ed5c1`), rotaları `bilkent.codes` ve `www.bilkent.codes → http://127.0.0.1:7680` (`www`, Cloudflare'deki Redirect Rule ile 301 `bilkent.codes`'a döner); rota ve DNS kaydı Cloudflare panelinde durur (Networking → Tunnels), sunucuda yalnızca jetonla kurulu `cloudflared` servisi var.
 - VPS `45.141.150.210` (Ubuntu 24.04). Caddy tünelin ucunu yalnızca `127.0.0.1:7680`'de dinler; 80/443 kapalı, dışarıya açık tek port SSH (22). Eski adres `kutuphane.bilkenters.com` 2026-10-02'de kaldırıldı (Vercel'deki DNS kaydı silindi); `bilkenters.com` artık bu projeyle ilgili değil, yalnızca vitrindeki linklerin gittiği gerçek site.
 - Tünelde Caddy'ye her istek `127.0.0.1`'den gelir: gerçek istemci IP'si `CF-Connecting-IP`'den okunur (Caddyfile'da `trusted_proxies` + `client_ip_headers`) ve API'ye `X-Forwarded-For` olarak verilir. fail2ban tünel trafiğini banlayamaz; giriş denemelerini API'nin sınırı ve Cloudflare tutar.
 - Kurulum `kurulum.sh` ile yapılır; betik dosyaları GitHub'daki `main`'in son commit'inden çeker.
