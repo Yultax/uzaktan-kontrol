@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Web terminal kurulumu: ttyd + tmux + Caddy (HTTPS) + bilkenters giriş sayfası + Claude Code
+# Web terminal kurulumu: ttyd + tmux + Caddy + Cloudflare Tunnel + bilkenters giriş sayfası + Claude Code
 # Ubuntu 22.04/24.04 veya Debian 12 üzerinde root olarak çalıştır:
 #   curl -fsSLo k URL; bash k
-# İsteğe bağlı: DOMAIN=ornek.com DEV_USER=ben bash k
+# Site dışarıya Cloudflare Tunnel ile açılır (sunucuda 80/443 dinlenmez, IP gizli kalır).
+# İsteğe bağlı: DEV_USER=ben TUNNEL_TOKEN=eyJ... bash k
+#   DIRECT_DOMAIN=eski.ornek.com  tünelin yanında bu adresi doğrudan HTTPS ile de yayınlar (geçiş/yedek)
+#   TUNNEL=0 DOMAIN=ornek.com     tünelsiz, eski usul: Caddy doğrudan HTTPS
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then
@@ -28,15 +31,30 @@ if [[ -z "${WEB_PASS:-}" ]]; then
   done
 fi
 
+TUNNEL="${TUNNEL:-1}"
+# Tünel jetonu da script'e gömülmez; yalnızca cloudflared servisi kurulu değilken sorulur
+if [[ "$TUNNEL" == 1 && -z "${TUNNEL_TOKEN:-}" && ! -f /etc/systemd/system/cloudflared.service ]]; then
+  echo "Cloudflare paneli > Networking > Tunnels > kutuphane: kurulum komutundaki eyJ... ile baslayan jeton."
+  read -rsp "Tunnel jetonu: " TUNNEL_TOKEN </dev/tty; echo
+  [[ -n "$TUNNEL_TOKEN" ]] || { echo "Jeton bos olamaz (tunelsiz kurulum: TUNNEL=0)." >&2; exit 1; }
+fi
+
 echo "==> Paketler"
 apt-get update -y
 apt-get install -y curl git tmux sudo ca-certificates gnupg
 
-PUBLIC_IP="$(curl -4 -fsS https://api.ipify.org)"
-if [[ -z "${DOMAIN:-}" ]]; then
-  echo "Alan adinin A kaydi $PUBLIC_IP adresine yonlenmis olmali."
-  read -rp "Alan adi (orn. terminal.ornek.com, bos = ${PUBLIC_IP//./-}.sslip.io): " DOMAIN </dev/tty
-  DOMAIN="${DOMAIN:-${PUBLIC_IP//./-}.sslip.io}"
+if [[ "$TUNNEL" == 1 ]]; then
+  # Alan adı → tünel eşlemesi Cloudflare panelinde durur (tünelin rotası: http://127.0.0.1:7680)
+  DOMAIN="${DOMAIN:-bilkent.codes}"
+  DIRECT_DOMAIN="${DIRECT_DOMAIN:-}"
+else
+  PUBLIC_IP="$(curl -4 -fsS https://api.ipify.org)"
+  if [[ -z "${DOMAIN:-}" ]]; then
+    echo "Alan adinin A kaydi $PUBLIC_IP adresine yonlenmis olmali."
+    read -rp "Alan adi (orn. terminal.ornek.com, bos = ${PUBLIC_IP//./-}.sslip.io): " DOMAIN </dev/tty
+    DOMAIN="${DOMAIN:-${PUBLIC_IP//./-}.sslip.io}"
+  fi
+  DIRECT_DOMAIN="$DOMAIN"
 fi
 
 echo "==> Swap (2 GB RAM için gerekli)"
@@ -160,8 +178,17 @@ fi
 
 mkdir -p /var/log/caddy
 chown caddy:caddy /var/log/caddy
-cat >/etc/caddy/Caddyfile <<EOF
-$DOMAIN {
+{
+cat <<'EOF'
+{
+	# Tünel (cloudflared) istekleri 127.0.0.1'den getirir; gerçek istemci IP'si CF-Connecting-IP'dedir
+	servers {
+		trusted_proxies static 127.0.0.1/32
+		client_ip_headers CF-Connecting-IP
+	}
+}
+
+(kutuphane) {
 	log {
 		output file /var/log/caddy/access.log
 		format json
@@ -183,7 +210,10 @@ $DOMAIN {
 	}
 	@herkes path /api/giris /api/oturum
 	handle @herkes {
-		reverse_proxy 127.0.0.1:7682
+		# Giriş deneme sınırı IP başına: API'ye tünelin değil gerçek istemcinin IP'si gitsin
+		reverse_proxy 127.0.0.1:7682 {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 	# Geri kalan her şey oturum ister; yoksa sayfalar /kutuphane'ye yönlenir
 	handle {
@@ -215,7 +245,44 @@ $DOMAIN {
 	}
 }
 EOF
+if [[ "$TUNNEL" == 1 ]]; then
+cat <<'EOF'
 
+# Tünelin ucu: yalnızca bu makinedeki cloudflared bağlanır, dışarıya açık değil
+http://:7680 {
+	bind 127.0.0.1
+	import kutuphane
+}
+EOF
+fi
+if [[ -n "$DIRECT_DOMAIN" ]]; then
+cat <<EOF
+
+# Doğrudan HTTPS (80/443 açık, sunucu IP'si alan adından görünür)
+$DIRECT_DOMAIN {
+	import kutuphane
+}
+EOF
+fi
+} >/etc/caddy/Caddyfile.yeni
+# Bozuk Caddyfile siteyi kapatır: önce doğrula, sonra yerine koy
+caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile.yeni >/dev/null
+mv -f /etc/caddy/Caddyfile.yeni /etc/caddy/Caddyfile
+
+if [[ "$TUNNEL" == 1 ]]; then
+  echo "==> cloudflared (Cloudflare Tunnel)"
+  case "$ARCH" in x86_64) CF_ARCH=amd64 ;; aarch64) CF_ARCH=arm64 ;; *) CF_ARCH="$ARCH" ;; esac
+  curl -fsSL -o /tmp/cloudflared.deb "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CF_ARCH}.deb"
+  dpkg -i /tmp/cloudflared.deb
+  rm -f /tmp/cloudflared.deb
+  if [[ -n "${TUNNEL_TOKEN:-}" ]]; then
+    cloudflared service uninstall >/dev/null 2>&1 || true
+    cloudflared service install "$TUNNEL_TOKEN"
+  fi
+fi
+
+# Not: tünelden gelen isteklerde log'daki remote_ip 127.0.0.1'dir, fail2ban onları banlayamaz;
+# tünelde giriş denemelerini API'nin kendi sınırı ve Cloudflare kuralları tutar. Bu jail doğrudan adres içindir.
 echo "==> fail2ban (10 hatali giris = 1 saat ban; /api/giris hatalari 401 olarak loglanir)"
 apt-get install -y fail2ban
 cat >/etc/fail2ban/filter.d/caddy-auth.conf <<'EOF'
@@ -268,8 +335,8 @@ echo "==> Claude Code ($DEV_USER için)"
 sudo -iu "$DEV_USER" bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
 grep -q '.local/bin' "/home/$DEV_USER/.bashrc" || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "/home/$DEV_USER/.bashrc"
 
-# ufw açıksa web portlarını aç
-if command -v ufw &>/dev/null && ufw status | grep -q active; then
+# ufw açıksa web portlarını aç (yalnızca doğrudan yayın varsa; tünel dışarıya port istemez)
+if [[ -n "$DIRECT_DOMAIN" ]] && command -v ufw &>/dev/null && ufw status | grep -q active; then
   ufw allow 80/tcp
   ufw allow 443/tcp
 fi
@@ -278,6 +345,10 @@ systemctl daemon-reload
 systemctl enable --now ttyd kutuphane-api
 systemctl restart kutuphane-api  # yeniden kurulumda yeni API kodu yüklensin
 systemctl restart caddy
+if [[ "$TUNNEL" == 1 ]]; then
+  systemctl enable cloudflared
+  systemctl restart cloudflared
+fi
 systemctl enable fail2ban
 systemctl restart fail2ban
 systemctl enable --now kutuphane-guncelle.timer
