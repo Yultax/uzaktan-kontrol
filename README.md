@@ -8,7 +8,7 @@ VDS sunucusuna tarayıcıdan tam terminal erişimi: **ttyd + tmux + Caddy + Clou
 - Site dışarıya **Cloudflare Tunnel** ile açılır: sunucuda 80/443 dinlenmez, alan adı Cloudflare'e çözülür, sunucunun IP'si görünmez.
 - tmux sayesinde sekme kapansa da oturum ve çalışan işler devam eder.
 - Üstte tıklanabilir sekme çubuğu: `[+ yeni]` yeni terminal, `[böl]` yan yana böl, `×` sekmeyi kapat.
-- **Sol sekme paneli:** açık gelir; adrese `?panel=0` ekleyince kapanır ve o tarayıcıda hatırlanır, `?panel=1` geri açar. Dar ekranda (telefon) daraltılmış başlar. Sekmeye geçme, yeni sekme (başlıktaki `+`), kapatma (fare satıra gelince sağ üstte çıkan `×`, iki tıkla), daraltma (alttaki `«`) ve çıkış; başlıkta sekme sayısı, her sekmede klasör, git dalı, RAM kullanımı ve çalışıyor göstergesi (solda yeşil çizgi), altta sistemin CPU (halka) ve RAM/disk (çubuk) durumu görünür. Sekme adına çift tıklayıp ad verilebilir; ad verilmemişse Claude'un sekmeye verdiği başlık gösterilir. Arka plandaki bir sekmede Claude işini bitirir ya da onay beklerse satırın adı sararır, solundaki çizgi sarı yanıp söner (aşağıdaki hook kurulu olmalı). Panel açıkken üstteki çubuk gizlenir, panel 90 saniye sessiz kalırsa kendiliğinden geri gelir.
+- **Sol sekme paneli:** açık gelir; adrese `?panel=0` ekleyince kapanır ve o tarayıcıda hatırlanır, `?panel=1` geri açar. Dar ekranda (telefon) daraltılmış başlar. Sekmeye geçme, yeni sekme (başlıktaki `+`), kapatma (fare satıra gelince sağ üstte çıkan `×`, iki tıkla), daraltma (alttaki `«`) ve çıkış; başlıkta sekme sayısı, her sekmede klasör, git dalı, RAM kullanımı ve çalışıyor göstergesi (solda yeşil çizgi), altta sistemin CPU (halka) ve RAM/disk (çubuk) durumu görünür. Onların üstünde Claude abonelik limitleri durur: 5 saatlik ve haftalık pencerenin dolu yüzdesi ile sıfırlanmasına kalan süre (aşağıdaki durum satırı betiği kurulu olmalı). Sekme adına çift tıklayıp ad verilebilir; ad verilmemişse Claude'un sekmeye verdiği başlık gösterilir. Arka plandaki bir sekmede Claude işini bitirir ya da onay beklerse satırın adı sararır, solundaki çizgi sarı yanıp söner (aşağıdaki hook kurulu olmalı). Panel açıkken üstteki çubuk gizlenir, panel 90 saniye sessiz kalırsa kendiliğinden geri gelir.
 - **Kopyalama:** metni fareyle sürükleyip bırakmak (ya da kelimeye çift, satıra üç tıklamak) yeter; seçilen metin panoya yazılır ve "Kopyalandı" bildirimi çıkar. Seçimi tmux yapar (kaydırılmış geçmişte de çalışır), sayfa tmux'un yolladığı OSC 52'yi panoya yazar. Shift (Mac'te Option) basılı sürüklemek tarayıcının kendi seçimini kullanır.
 - **Görsel yapıştırma:** Cmd+V veya sürükle-bırak → görsel sunucuya yüklenir, yolu terminale yapıştırılır (Claude Code görsel olarak ekler).
 - **WebSocket'siz yedek mod (`/yedek`):** WebSocket engelliyse ana sayfa otomatik olarak buraya geçer; HTTP long-poll ile aynı tmux oturumuna bağlanır.
@@ -76,3 +76,11 @@ Yüklenen görseller: `/home/arda/uploads/`
   "Notification": [{ "matcher": "permission_prompt|elicitation_dialog", "hooks": [{ "type": "command", "command": "[ -n \"$TMUX_PANE\" ] && tmux set-option -w -t \"$TMUX_PANE\" @kp_durum bekliyor 2>/dev/null || true" }] }]
 }
 ```
+
+Claude kullanım çubukları için Claude Code'un durum satırı betiği (`~/.claude/settings.json` → `statusLine`, sunucuya özel, `kurulum.sh` kurmaz) stdin'den aldığı JSON'daki `rate_limits.five_hour` ve `rate_limits.seven_day` değerlerini `~/.claude/kullanim.json` dosyasına yazmalıdır:
+
+```json
+{"five_hour": {"used_percentage": 42, "resets_at": 1791274140}, "seven_day": {"used_percentage": 18, "resets_at": 1791741600}}
+```
+
+API bu dosyayı yalnızca okur; ek istek atılmaz, kullanım harcanmaz. Değerler yalnızca Pro/Max aboneliğinde ve bu sunucudaki bir Claude oturumu yanıt aldıkça gelir; başka cihazdaki kullanım bir sonraki yanıta kadar yansımaz.

@@ -19,7 +19,8 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/upload  (gövde: görsel)            -> {"path":..}
   GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme","ram","cpu",
                                                                  "baslik","adli","bekliyor"}],
-                                                   "sistem":{"cpu","ram","ram_toplam","disk"}}
+                                                   "sistem":{"cpu","ram","ram_toplam","disk"},
+                                                   "claude":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}}}
   POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk|adlandir","no":..,"ad":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
@@ -443,12 +444,38 @@ def sample_usage():
         return wins, system
 
 
+# Claude abonelik limitleri: Claude Code'un durum satırı betiği (~/.claude/statusline.sh, repo dışı) her yanıtla
+# gelen yüzdeleri bu dosyaya yazar. API yalnızca okur; Anthropic'e istek atılmaz, kullanım harcanmaz.
+CLAUDE_USAGE_FILE = os.path.join(HOME, ".claude", "kullanim.json")
+
+
+def claude_usage():
+    """5 saatlik ve haftalık pencere: dolu yüzde ve sıfırlanmaya kalan saniye. Dosya yoksa boş döner."""
+    try:
+        with open(CLAUDE_USAGE_FILE) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    out, now = {}, time.time()
+    for ad, key in (("bes_saat", "five_hour"), ("hafta", "seven_day")):
+        w = data.get(key) if isinstance(data, dict) else None
+        if not isinstance(w, dict):
+            continue
+        pct, reset = w.get("used_percentage"), w.get("resets_at")
+        if isinstance(pct, bool) or not isinstance(pct, (int, float)) or not isinstance(reset, (int, float)):
+            continue
+        # sıfırlanma anı geçtiyse pencere yenilendi: yeni yüzde ilk yanıtla gelene kadar boş say
+        left = reset - now
+        out[ad] = {"yuzde": round(max(0, min(100, pct))), "kalan": round(left)} if left > 0 else {"yuzde": 0, "kalan": 0}
+    return out
+
+
 def panel_state():
     wins = list_windows()
     per, system = sample_usage()
     for w in wins:
         w["ram"], w["cpu"] = per.get(w["no"], (0, 0))
-    return {"sekmeler": wins, "sistem": system}
+    return {"sekmeler": wins, "sistem": system, "claude": claude_usage()}
 
 
 def clean_title(title, host):

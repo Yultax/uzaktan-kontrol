@@ -262,6 +262,8 @@
       '@media (hover:none){#kp .kp-x{opacity:1;transform:none;pointer-events:auto}.kp-ad{padding-right:22px}}' +
       '#kp .kp-x:hover{background:#45454d;color:#f38ba8}' +
       '#kp .kp-x.kp-emin{background:#f38ba8;color:#111113;font-weight:700;font-size:11px}' +
+      '#kp-cl{flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 12px 10px 10px;' +
+        'border-top:1px solid #232327;color:#8b8b94;font-size:11px}' +
       '#kp-sis{flex:none;display:flex;align-items:center;gap:12px;padding:10px 12px 4px 10px;' +
         'border-top:1px solid #232327;color:#8b8b94;font-size:11px}' +
       '.kp-halka{position:relative;flex:none;width:58px;height:58px}' +
@@ -298,7 +300,7 @@
       '#kp #kp-cikis:hover,#kp #kp-daralt:hover{background:#1a1a1d;border-color:#34343a;color:#e4e4e7}' +
       '#kp #kp-cikis:hover{color:#f38ba8}' +
       '#kp.kp-dar #kp-baslik,#kp.kp-dar .kp-m,#kp.kp-dar .kp-x,#kp.kp-dar #kp-cikis,' +
-        '#kp.kp-dar .kp-s:before,#kp.kp-dar .kp-ram,#kp.kp-dar #kp-sis{display:none}' +
+        '#kp.kp-dar .kp-s:before,#kp.kp-dar .kp-ram,#kp.kp-dar #kp-sis,#kp.kp-dar #kp-cl{display:none}' +
       '#kp.kp-dar .kp-no{display:block}' +
       '#kp.kp-dar #kp-ust{justify-content:center;padding:10px 0 8px}' +
       '#kp.kp-dar #kp-liste{padding:0 6px}' +
@@ -313,6 +315,12 @@
       '<div id="kp-ust"><span id="kp-baslik">Sekmeler</span>' +
       '<button id="kp-yeni" type="button" title="Yeni sekme" aria-label="Yeni sekme"></button></div>' +
       '<div id="kp-liste"></div>' +
+      '<div id="kp-cl" title="Claude kullanım limitleri">' +
+      '<div class="kp-g" data-g="c5"><div class="kp-gu"><span class="kp-ge">Claude · 5 saat</span><span class="kp-gd">—</span></div>' +
+      '<span class="kp-gb"><i></i></span></div>' +
+      '<div class="kp-g" data-g="c7"><div class="kp-gu"><span class="kp-ge">Claude · hafta</span><span class="kp-gd">—</span></div>' +
+      '<span class="kp-gb"><i></i></span></div>' +
+      '</div>' +
       '<div id="kp-sis">' +
       '<div class="kp-halka" data-g="cpu" title="İşlemci kullanımı"><svg viewBox="0 0 48 48" aria-hidden="true">' +
       '<circle class="kp-hz" cx="24" cy="24" r="20"/><circle class="kp-hd" cx="24" cy="24" r="20"/></svg>' +
@@ -519,12 +527,28 @@
       }
       gosterge('disk', d.disk, d.disk, yuzdeYaz);
     }
+    // Claude limitleri: dolu yüzde + pencerenin sıfırlanmasına kalan süre; veri gelene kadar "—" kalır
+    function sure(sn) {
+      var dk = Math.ceil(sn / 60);
+      if (dk >= 1440) return Math.floor(dk / 1440) + 'g ' + Math.floor(dk % 1440 / 60) + 'sa';
+      if (dk >= 60) return Math.floor(dk / 60) + 'sa ' + (dk % 60) + 'dk';
+      return dk + 'dk';
+    }
+    function claude(d) {
+      if (!d) return;
+      [['c5', d.bes_saat], ['c7', d.hafta]].forEach(function (c) {
+        var p = c[1];
+        if (!p) return;
+        gosterge(c[0], p.yuzde, p.yuzde, function (v) { return '%' + Math.round(v) + (p.kalan > 0 ? ' · ' + sure(p.kalan) : ''); });
+      });
+    }
 
     function goster(j) {
       if (!j || !Array.isArray(j.sekmeler)) return;
       son = j.sekmeler;
       ciz();
       sistem(j.sistem);
+      claude(j.claude);
     }
 
     // Sekme arka plandayken de sorar: API paneli açık saysın, üstteki çubuk gidip gelmesin
