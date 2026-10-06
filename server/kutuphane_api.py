@@ -531,17 +531,30 @@ def codex_read_limits():
         p.wait()
 
 
+def codex_limit_data(res):
+    """Codex kotasını seç; başka model kotalarını 5 saat/hafta diye gösterme."""
+    if not isinstance(res, dict):
+        return None
+    buckets = res.get("rateLimitsByLimitId")
+    rl = buckets.get("codex") if isinstance(buckets, dict) else None
+    if not isinstance(rl, dict):
+        rl = res.get("rateLimits")
+        if isinstance(rl, dict) and rl.get("limitId") not in (None, "codex"):
+            return None
+    if not isinstance(rl, dict):
+        return None
+    data = {}
+    for w in (rl.get("primary"), rl.get("secondary")):
+        ad = CODEX_WINDOWS.get(w.get("windowDurationMins")) if isinstance(w, dict) else None
+        if ad and limit_window(w.get("usedPercent"), w.get("resetsAt"), time.time()) is not None:
+            data[ad] = (w["usedPercent"], w["resetsAt"])
+    return data
+
+
 def codex_refresh():
     data = None
     try:
-        res = codex_read_limits()
-        rl = res.get("rateLimits") if isinstance(res, dict) else None
-        if isinstance(rl, dict):
-            data = {}
-            for w in (rl.get("primary"), rl.get("secondary")):
-                ad = CODEX_WINDOWS.get(w.get("windowDurationMins")) if isinstance(w, dict) else None
-                if ad:
-                    data[ad] = (w.get("usedPercent"), w.get("resetsAt"))
+        data = codex_limit_data(codex_read_limits())
     finally:
         with codex_lock:
             codex["busy"] = False

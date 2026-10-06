@@ -84,3 +84,20 @@ Claude kullanım çubukları için Claude Code'un durum satırı betiği (`~/.cl
 ```
 
 API bu dosyayı yalnızca okur; ek istek atılmaz, kullanım harcanmaz. Değerler yalnızca Pro/Max aboneliğinde ve bu sunucudaki bir Claude oturumu yanıt aldıkça gelir; başka cihazdaki kullanım bir sonraki yanıta kadar yansımaz.
+
+### Codex terminalinin alt satırı
+
+Web panelindeki Codex çubukları ile Codex CLI'nin kendi alt satırı ayrı göstergelerdir. Terminal alt satırı için Codex içinde `/statusline` yazıp model/düşünme seviyesi, kalan bağlam, 5 saatlik limit ve haftalık limit öğelerini seç. Bu menü alt satırı hemen günceller ve tercihi `~/.codex/config.toml` içine kaydeder.
+
+Dosyadan ayarlamak için mevcut `[tui]` bölümüne şu anahtarı ekle; mevcut ayarları koru ve ikinci bir `[tui]` bölümü oluşturma:
+
+```toml
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "five-hour-limit", "weekly-limit", "git-branch"]
+```
+
+Dosyayı elle değiştirdiysen ayarı sonraki Codex açılışında kontrol et. Limit bilgisi hesap veya bağlantı nedeniyle alınamıyorsa ilgili öğeler görünmeyebilir; bu durum sıfır kullanım anlamına gelmez.
+
+Bu kullanıcıya özel ayarı `kurulum.sh` ve `guncelle.sh` kurmaz; web/API dosyası değişikliği, servis yeniden başlatma veya GitHub'a push gerektirmez. Sandbox `~/.codex` yolunu salt okunur tutuyorsa ayarı normal terminalde `/statusline` menüsünden değiştir.
+
+Resmî belgeler: [alt satır menüsü](https://learn.chatgpt.com/docs/developer-commands?surface=cli), [tui.status_line ayarı](https://learn.chatgpt.com/docs/config-file/config-reference).
