@@ -315,10 +315,14 @@
       '<div id="kp-ust"><span id="kp-baslik">Sekmeler</span>' +
       '<button id="kp-yeni" type="button" title="Yeni sekme" aria-label="Yeni sekme"></button></div>' +
       '<div id="kp-liste"></div>' +
-      '<div id="kp-cl" title="Claude kullanım limitleri">' +
+      '<div id="kp-cl" title="Kullanım limitleri">' +
       '<div class="kp-g" data-g="c5"><div class="kp-gu"><span class="kp-ge">Claude · 5 saat</span><span class="kp-gd">—</span></div>' +
       '<span class="kp-gb"><i></i></span></div>' +
       '<div class="kp-g" data-g="c7"><div class="kp-gu"><span class="kp-ge">Claude · hafta</span><span class="kp-gd">—</span></div>' +
+      '<span class="kp-gb"><i></i></span></div>' +
+      '<div class="kp-g" data-g="x5" style="display:none"><div class="kp-gu"><span class="kp-ge">Codex · 5 saat</span><span class="kp-gd">—</span></div>' +
+      '<span class="kp-gb"><i></i></span></div>' +
+      '<div class="kp-g" data-g="x7" style="display:none"><div class="kp-gu"><span class="kp-ge">Codex · hafta</span><span class="kp-gd">—</span></div>' +
       '<span class="kp-gb"><i></i></span></div>' +
       '</div>' +
       '<div id="kp-sis">' +
@@ -527,19 +531,20 @@
       }
       gosterge('disk', d.disk, d.disk, yuzdeYaz);
     }
-    // Claude limitleri: dolu yüzde + pencerenin sıfırlanmasına kalan süre; veri gelene kadar "—" kalır
+    // Kullanım limitleri (c: Claude, x: Codex): dolu yüzde + pencerenin sıfırlanmasına kalan süre.
+    // Claude satırları veri gelene kadar "—" gösterir; Codex satırları veri yoksa (kurulu/girişli değil) gizlenir.
     function sure(sn) {
       var dk = Math.ceil(sn / 60);
       if (dk >= 1440) return Math.floor(dk / 1440) + 'g ' + Math.floor(dk % 1440 / 60) + 'sa';
       if (dk >= 60) return Math.floor(dk / 60) + 'sa ' + (dk % 60) + 'dk';
       return dk + 'dk';
     }
-    function claude(d) {
-      if (!d) return;
-      [['c5', d.bes_saat], ['c7', d.hafta]].forEach(function (c) {
-        var p = c[1];
+    function limit(on, d) {
+      [['5', d && d.bes_saat], ['7', d && d.hafta]].forEach(function (c) {
+        var p = c[1], g = gostergeler[on + c[0]];
+        if (g && on === 'x') g.kutu.style.display = p ? '' : 'none';
         if (!p) return;
-        gosterge(c[0], p.yuzde, p.yuzde, function (v) { return '%' + Math.round(v) + (p.kalan > 0 ? ' · ' + sure(p.kalan) : ''); });
+        gosterge(on + c[0], p.yuzde, p.yuzde, function (v) { return '%' + Math.round(v) + (p.kalan > 0 ? ' · ' + sure(p.kalan) : ''); });
       });
     }
 
@@ -548,7 +553,8 @@
       son = j.sekmeler;
       ciz();
       sistem(j.sistem);
-      claude(j.claude);
+      limit('c', j.claude);
+      limit('x', j.codex);
     }
 
     // Sekme arka plandayken de sorar: API paneli açık saysın, üstteki çubuk gidip gelmesin

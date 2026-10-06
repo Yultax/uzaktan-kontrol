@@ -20,7 +20,8 @@ Sadece Python standart kütüphanesi kullanır.
   GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme","ram","cpu",
                                                                  "baslik","adli","bekliyor"}],
                                                    "sistem":{"cpu","ram","ram_toplam","disk"},
-                                                   "claude":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}}}
+                                                   "claude":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}},
+                                                   "codex":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}}}
   POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk|adlandir","no":..,"ad":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
@@ -30,6 +31,7 @@ import json
 import os
 import pty
 import secrets
+import select
 import signal
 import struct
 import subprocess
@@ -449,8 +451,17 @@ def sample_usage():
 CLAUDE_USAGE_FILE = os.path.join(HOME, ".claude", "kullanim.json")
 
 
+def limit_window(pct, reset, now):
+    """Bir limit penceresi: dolu yüzde ve sıfırlanmaya kalan saniye; değerler bozuksa None."""
+    if isinstance(pct, bool) or not isinstance(pct, (int, float)) or not isinstance(reset, (int, float)):
+        return None
+    # sıfırlanma anı geçtiyse pencere yenilendi: yeni yüzde gelene kadar boş say
+    left = reset - now
+    return {"yuzde": round(max(0, min(100, pct))), "kalan": round(left)} if left > 0 else {"yuzde": 0, "kalan": 0}
+
+
 def claude_usage():
-    """5 saatlik ve haftalık pencere: dolu yüzde ve sıfırlanmaya kalan saniye. Dosya yoksa boş döner."""
+    """5 saatlik ve haftalık pencere. Dosya yoksa boş döner."""
     try:
         with open(CLAUDE_USAGE_FILE) as f:
             data = json.load(f)
@@ -459,14 +470,98 @@ def claude_usage():
     out, now = {}, time.time()
     for ad, key in (("bes_saat", "five_hour"), ("hafta", "seven_day")):
         w = data.get(key) if isinstance(data, dict) else None
-        if not isinstance(w, dict):
-            continue
-        pct, reset = w.get("used_percentage"), w.get("resets_at")
-        if isinstance(pct, bool) or not isinstance(pct, (int, float)) or not isinstance(reset, (int, float)):
-            continue
-        # sıfırlanma anı geçtiyse pencere yenilendi: yeni yüzde ilk yanıtla gelene kadar boş say
-        left = reset - now
-        out[ad] = {"yuzde": round(max(0, min(100, pct))), "kalan": round(left)} if left > 0 else {"yuzde": 0, "kalan": 0}
+        if isinstance(w, dict):
+            win = limit_window(w.get("used_percentage"), w.get("resets_at"), now)
+            if win:
+                out[ad] = win
+    return out
+
+
+# Codex (ChatGPT) limitleri: yerel `codex app-server`'a JSON-RPC ile sorulur; o da hesabın limit durumunu
+# OpenAI'dan okur. Model çağrısı yapılmaz, kullanım harcanmaz. Yalnızca panel sorarken ve en çok
+# CODEX_REFRESH saniyede bir çalışır; Codex kurulu ya da girişli değilse boş döner.
+CODEX_REFRESH = 120             # iki sorgu arası en az süre
+CODEX_STALE = 900               # bu kadar süredir yenilenemeyen değer gösterilmez
+CODEX_TIMEOUT = 20
+CODEX_WINDOWS = {300: "bes_saat", 10080: "hafta"}   # pencere süresi (dk) -> ad
+codex = {"t": 0.0, "ok": 0.0, "busy": False, "data": {}}
+codex_lock = threading.Lock()
+
+
+def codex_read_limits():
+    """account/rateLimits/read yanıtının "result" kısmı; alınamazsa None."""
+    # codex bir node betiği; servis ortamının PATH'inde ~/.local/bin yok
+    env = dict(os.environ, PATH=os.path.join(HOME, ".local", "bin") + os.pathsep + os.environ.get("PATH", ""))
+    try:
+        p = subprocess.Popen(["codex", "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, env=env, cwd=HOME, start_new_session=True)
+    except OSError:
+        return None
+    try:
+        msgs = ({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "kutuphane", "version": "1"}}},
+                {"method": "initialized"},
+                {"id": 2, "method": "account/rateLimits/read"})
+        p.stdin.write("".join(json.dumps(m) + "\n" for m in msgs).encode())
+        p.stdin.flush()
+        buf, end = b"", time.time() + CODEX_TIMEOUT
+        while time.time() < end:
+            if not select.select([p.stdout], [], [], 0.5)[0]:
+                continue
+            chunk = os.read(p.stdout.fileno(), 65536)
+            if not chunk:
+                break
+            buf += chunk
+            while b"\n" in buf:
+                line, buf = buf.split(b"\n", 1)
+                try:
+                    m = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(m, dict) and m.get("id") == 2:
+                    return m.get("result")
+        return None
+    except (OSError, ValueError):
+        return None
+    finally:
+        # node sarmalayıcısı asıl ikiliyi çocuk olarak başlatır: ikisini birden öldür
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        p.wait()
+
+
+def codex_refresh():
+    data = None
+    try:
+        res = codex_read_limits()
+        rl = res.get("rateLimits") if isinstance(res, dict) else None
+        if isinstance(rl, dict):
+            data = {}
+            for w in (rl.get("primary"), rl.get("secondary")):
+                ad = CODEX_WINDOWS.get(w.get("windowDurationMins")) if isinstance(w, dict) else None
+                if ad:
+                    data[ad] = (w.get("usedPercent"), w.get("resetsAt"))
+    finally:
+        with codex_lock:
+            codex["busy"] = False
+            if data is not None:
+                codex["data"], codex["ok"] = data, time.time()
+
+
+def codex_usage():
+    """Son bilinen Codex limitleri; süresi geldiyse arka planda yeniler (isteği bekletmez)."""
+    now = time.time()
+    with codex_lock:
+        if not codex["busy"] and now - codex["t"] >= CODEX_REFRESH:
+            codex["busy"], codex["t"] = True, now
+            threading.Thread(target=codex_refresh, daemon=True).start()
+        data = codex["data"] if now - codex["ok"] < CODEX_STALE else {}
+    out = {}
+    for ad, (pct, reset) in data.items():
+        win = limit_window(pct, reset, now)
+        if win:
+            out[ad] = win
     return out
 
 
@@ -475,7 +570,7 @@ def panel_state():
     per, system = sample_usage()
     for w in wins:
         w["ram"], w["cpu"] = per.get(w["no"], (0, 0))
-    return {"sekmeler": wins, "sistem": system, "claude": claude_usage()}
+    return {"sekmeler": wins, "sistem": system, "claude": claude_usage(), "codex": codex_usage()}
 
 
 def clean_title(title, host):
