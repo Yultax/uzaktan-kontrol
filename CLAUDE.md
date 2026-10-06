@@ -48,6 +48,7 @@ VDS'e tarayıcıdan terminal erişimi. Dışarıdan bilkenters'ın "Kütüphane"
 
 ## Bekleyen konular
 
+- Sol panelin yeni tasarımı önizlemede (2026-10-06): `kutuphane.js` içinde eski `panelKur` varsayılan, yeni `panelKurYeni` yalnızca `?tasarim=yeni` ile açılır (tercih `localStorage` `kutuphane.panel.tasarim`, `?tasarim=eski` geri döndürür). Kullanıcı onaylarsa eski `panelKur` ve bu seçim silinecek; yeni tasarımın tek başına son hali ve güncel README/CLAUDE.md metinleri yerel `panel-tasarim` dalında. Onaylamazsa `panelKurYeni` ve `yeniTasarim` kaldırılır.
 - `bilkent.codes` geçişi 2026-10-02'de tamamlandı; sunucudaki Caddyfile ve `cloudflared` elle kuruldu (`kurulum.sh`'nin üreteceğiyle aynı Caddyfile), `kurulum.sh`'nin yeni tünel adımları sunucuda baştan sona henüz çalıştırılmadı.
 - Cloudflare'de açık olanlar: Always Use HTTPS, yalnızca TLS 1.3 (min TLS 1.3), HSTS (12 ay, includeSubDomains, preload kapalı), nosniff, HTTP/3, ECH, Bot Fight Mode, `/api/giris` hız sınırı kuralı (IP başına 10 sn'de 5 istek → 10 sn blok; Free planın tek seçeneği).
 - Cloudflare Access (e-postaya tek kullanımlık kod) kurulmadı: Zero Trust Free planı $0 ama etkinleştirmek için kart/PayPal ve fatura adresi istiyor, bunu kullanıcı girmeli. Kurulursa yalnızca oturum arkasındaki yollar korunmalı, `/kutuphane`, `/giris`, `/site/*`, `/api/giris`, `/api/oturum` Bypass kalmalı; yine de `bilkent.codes/` yabancıya Cloudflare giriş ekranı gösterir (kamuflaj ödünü, kullanıcıyla konuş).
