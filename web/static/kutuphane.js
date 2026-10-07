@@ -278,7 +278,7 @@
       // limitler: satır = araç, sütun = pencere. Çubuk dolu yüzdeyi, üstündeki işaret pencerede geçen süreyi gösterir;
       // dolgu işaretin ilerisindeyse limit sıfırlanmadan bitecek hızda harcanıyor demektir
       '#kp-cl{display:flex;flex-direction:column;gap:7px;font-size:11px;cursor:pointer}' +
-      '.kp-lr{display:grid;grid-template-columns:40px 1fr 1fr;column-gap:10px;align-items:center}' +
+      '.kp-lr{display:grid;grid-template-columns:68px 1fr 1fr;column-gap:8px;align-items:center}' +
       '.kp-lb{color:var(--kp-soluk);font-size:10px;letter-spacing:.06em;text-transform:uppercase}' +
       '.kp-l{display:flex;align-items:center;gap:6px;min-width:0}' +
       '.kp-lc{position:relative;flex:1;height:4px;border-radius:2px;background:var(--kp-iz)}' +
@@ -337,7 +337,8 @@
         return '<span class="kp-l" data-g="' + g + '"><span class="kp-lc"><i></i><b hidden></b></span>' +
           '<span class="kp-ld">—</span></span>';
       }
-      return '<div class="kp-lr" data-l="' + on + '"' + (on === 'x' ? ' hidden' : '') + '><span>' + ad + '</span>' +
+      var baslik = on === 'ag' ? 'Antigravity · Gemini havuzu' : on === 'ao' ? 'Antigravity · Claude/GPT havuzu' : ad;
+      return '<div class="kp-lr" data-l="' + on + '" title="' + baslik + '"' + (on !== 'c' ? ' hidden' : '') + '><span>' + ad + '</span>' +
         hucre(on + '5') + hucre(on + '7') + '</div>';
     }
     function olcer(g, ad) {
@@ -356,6 +357,7 @@
       '<div id="kp-cl">' +
       '<div class="kp-lr kp-lb" title="Tıkla: yüzde / sıfırlanmaya kalan süre"><span></span><span>5 saat</span><span>Hafta</span></div>' +
       limitSatiri('c', 'Claude') + limitSatiri('x', 'Codex') +
+      limitSatiri('ag', 'AG Gemini') + limitSatiri('ao', 'AG C/G') +
       '</div>' +
       '<div id="kp-sis">' + olcer('cpu', 'CPU') + olcer('ram', 'RAM') + olcer('disk', 'Disk') + '</div>' +
       '</div>' +
@@ -537,10 +539,10 @@
       }
       gosterge('disk', d.disk, '%' + d.disk, 'Disk doluluğu: %' + d.disk);
     }
-    // Kullanım limitleri (c: Claude, x: Codex): dolu yüzde + pencerenin sıfırlanmasına kalan süre.
-    // Claude satırı veri gelene kadar "—" gösterir; Codex satırı veri yoksa (kurulu/girişli değil) gizlenir.
+    // Kullanım limitleri: dolu yüzde + pencerenin sıfırlanmasına kalan süre.
+    // Codex ve Antigravity satırları veri yoksa (kurulu/girişli değil) gizlenir.
     var PENCERE = { '5': 18000, '7': 604800 };   // pencere uzunluğu (sn): geçen süre işareti buna göre yerleşir
-    var limitler = { c: null, x: null };
+    var limitler = { c: null, x: null, ag: null, ao: null };
     function sure(sn) {
       var dk = Math.ceil(sn / 60);
       if (dk >= 1440) return Math.floor(dk / 1440) + 'g ' + Math.floor(dk % 1440 / 60) + 'sa';
@@ -571,10 +573,10 @@
         g.isaret.hidden = !(gecen >= 0 && gecen <= 100);
         if (!g.isaret.hidden) g.isaret.style.left = gecen.toFixed(1) + '%';
         gosterge(on + c[0], p.yuzde, kalanGoster && p.kalan > 0 ? kisaSure(p.kalan) : '%' + p.yuzde,
-          (on === 'x' ? 'Codex' : 'Claude') + ' · ' + c[2] + ': %' + p.yuzde + ' kullanıldı' +
+          ({x: 'Codex', ag: 'Antigravity Gemini', ao: 'Antigravity Claude/GPT', c: 'Claude'}[on]) + ' · ' + c[2] + ': %' + p.yuzde + ' kullanıldı' +
           (p.kalan > 0 ? ', ' + sure(p.kalan) + ' sonra sıfırlanır' : ''));
       });
-      if (on === 'x') kp.querySelector('[data-l="x"]').hidden = !varMi;
+      if (on !== 'c') kp.querySelector('[data-l="' + on + '"]').hidden = !varMi;
     }
 
     function goster(j) {
@@ -584,6 +586,8 @@
       sistem(j.sistem);
       limit('c', j.claude);
       limit('x', j.codex);
+      limit('ag', j.antigravity && j.antigravity.gemini);
+      limit('ao', j.antigravity && j.antigravity.other);
     }
 
     // Sekme arka plandayken de sorar: API paneli açık saysın, üstteki çubuk gidip gelmesin
@@ -660,6 +664,8 @@
         try { localStorage.setItem('kutuphane.panel.kalan', kalanGoster ? '1' : '0'); } catch (err) {}
         limit('c', limitler.c);
         limit('x', limitler.x);
+        limit('ag', limitler.ag);
+        limit('ao', limitler.ao);
         return odak();
       }
       var satir = el.closest('.kp-s');

@@ -101,3 +101,7 @@ Dosyayı elle değiştirdiysen ayarı sonraki Codex açılışında kontrol et. 
 Bu kullanıcıya özel ayarı `kurulum.sh` ve `guncelle.sh` kurmaz; web/API dosyası değişikliği, servis yeniden başlatma veya GitHub'a push gerektirmez. Sandbox `~/.codex` yolunu salt okunur tutuyorsa ayarı normal terminalde `/statusline` menüsünden değiştir.
 
 Resmî belgeler: [alt satır menüsü](https://learn.chatgpt.com/docs/developer-commands?surface=cli), [tui.status_line ayarı](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+### Antigravity CLI kullanım limitleri
+
+Panel, Antigravity CLI (`agy`) kurulu ve giriş yapılmışsa `/usage` komutunu salt okunur biçimde JSON modunda çalıştırır. Model isteği göndermez ve kullanım harcamaz. Gemini havuzu ile Claude/GPT havuzu (panelde `AG C/G`) ayrı satırlarda, 5 saatlik ve haftalık kalan oranlarıyla görünür. API sonucu arka planda en fazla 2 dakikada bir yeniler; CLI kurulu/girişli değilse veya sorgu başarısızsa Antigravity satırları gizlenir.

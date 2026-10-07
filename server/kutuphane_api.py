@@ -21,10 +21,12 @@ Sadece Python standart kütüphanesi kullanır.
                                                                  "baslik","adli","bekliyor"}],
                                                    "sistem":{"cpu","ram","ram_toplam","disk"},
                                                    "claude":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}},
-                                                   "codex":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}}}
+                                                   "codex":{"bes_saat":{"yuzde","kalan"},"hafta":{"yuzde","kalan"}},
+                                                   "antigravity":{"gemini":...,"other":...}}
   POST /api/sekme   {"islem":"sec|yeni|kapat|bol|cubuk|adlandir","no":..,"ad":..} -> güncel sekme listesi  (sol panel)
 """
 import fcntl
+from datetime import datetime
 import hashlib
 import hmac
 import json
@@ -578,12 +580,92 @@ def codex_usage():
     return out
 
 
+# Antigravity CLI'nin /usage komutu -p modunda sadece kotayı okur; model turu başlatmaz.
+AGY_REFRESH = 120
+AGY_STALE = 900
+AGY_TIMEOUT = 30
+agy = {"t": 0.0, "ok": 0.0, "busy": False, "data": {}}
+agy_lock = threading.Lock()
+
+
+def agy_read_limits():
+    """agy /usage JSON çıktısından Gemini ve Claude/GPT kota havuzlarını seç."""
+    env = dict(os.environ, PATH=os.path.join(HOME, ".local", "bin") + os.pathsep + os.environ.get("PATH", ""))
+    try:
+        p = subprocess.run(["agy", "-p", "/usage", "--output-format", "json"], cwd=HOME,
+                           env=env, capture_output=True, text=True, timeout=AGY_TIMEOUT)
+        if p.returncode != 0:
+            return None
+        result = json.loads(p.stdout).get("command", {}).get("data", {})
+    except (OSError, subprocess.TimeoutExpired, ValueError, AttributeError):
+        return None
+    groups = result.get("groups") if isinstance(result, dict) else None
+    if not isinstance(groups, list):
+        return None
+    out = {"gemini": {}, "other": {}}
+    now = time.time()
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        name = str(group.get("name", "")).lower()
+        key = "gemini" if "gemini" in name else "other" if ("claude" in name or "gpt" in name) else None
+        if not key:
+            continue
+        for bucket in group.get("buckets", []):
+            if not isinstance(bucket, dict):
+                continue
+            window = {"5h": "bes_saat", "weekly": "hafta"}.get(bucket.get("window"))
+            remaining = bucket.get("remaining_fraction")
+            reset_at = bucket.get("reset_time")
+            if (not window or isinstance(remaining, bool) or not isinstance(remaining, (int, float))
+                    or not isinstance(reset_at, str)):
+                continue
+            try:
+                reset = datetime.fromisoformat(reset_at.replace("Z", "+00:00")).timestamp()
+            except ValueError:
+                continue
+            value = limit_window(100 * (1 - max(0, min(1, remaining))), reset, now)
+            if value:
+                out[key][window] = (value["yuzde"], reset)
+    return out if any(out.values()) else None
+
+
+def agy_refresh():
+    data = None
+    try:
+        data = agy_read_limits()
+    finally:
+        with agy_lock:
+            agy["busy"] = False
+            if data is not None:
+                agy["data"], agy["ok"] = data, time.time()
+
+
+def agy_usage():
+    """Son bilinen Antigravity kotaları; yenileme panel isteğini bekletmez."""
+    now = time.time()
+    with agy_lock:
+        if not agy["busy"] and now - agy["t"] >= AGY_REFRESH:
+            agy["busy"], agy["t"] = True, now
+            threading.Thread(target=agy_refresh, daemon=True).start()
+        data = agy["data"] if now - agy["ok"] < AGY_STALE else {}
+    out = {}
+    for pool, windows in data.items():
+        out[pool] = {}
+        for window, (pct, reset) in windows.items():
+            value = limit_window(pct, reset, now)
+            if value:
+                out[pool][window] = value
+    return out
+
+
 def panel_state():
     wins = list_windows()
     per, system = sample_usage()
     for w in wins:
         w["ram"], w["cpu"] = per.get(w["no"], (0, 0))
-    return {"sekmeler": wins, "sistem": system, "claude": claude_usage(), "codex": codex_usage()}
+    return {"sekmeler": wins, "sistem": system, "claude": claude_usage(), "codex": codex_usage(),
+            "antigravity": agy_usage()}
 
 
 def clean_title(title, host):
