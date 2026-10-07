@@ -195,11 +195,9 @@
     var GENIS = 236, DAR = 44;
     // Panel yalnızca alttaki düğmeyle daralır; tercih tarayıcıda saklanır. Tercih yoksa dar ekranda dar başlar
     var dar = window.innerWidth < 700;
-    var kalanGoster = false;             // limit hücreleri yüzde yerine sıfırlanmaya kalan süreyi gösterir
     try {
       var kayitliDar = localStorage.getItem('kutuphane.panel.dar');
       if (kayitliDar !== null) dar = kayitliDar === '1';
-      kalanGoster = localStorage.getItem('kutuphane.panel.kalan') === '1';
     } catch (e) {}
 
     var css = document.createElement('style');
@@ -275,18 +273,15 @@
         'background:var(--kp-tehlike);transform-origin:left;animation:kp-sure 3s linear forwards}' +
       '#kp-durum{flex:none;display:flex;flex-direction:column;gap:13px;padding:11px 14px 12px;' +
         'border-top:1px solid var(--kp-cizgi)}' +
-      // limitler: satır = araç, sütun = pencere. Çubuk dolu yüzdeyi, üstündeki işaret pencerede geçen süreyi gösterir;
-      // dolgu işaretin ilerisindeyse limit sıfırlanmadan bitecek hızda harcanıyor demektir
-      '#kp-cl{display:flex;flex-direction:column;gap:7px;font-size:11px;cursor:pointer}' +
+      // limitler: çubuk ve yanındaki sayı aynı kullanılan yüzdeyi gösterir
+      '#kp-cl{display:flex;flex-direction:column;gap:7px;font-size:11px}' +
       '.kp-lr{display:grid;grid-template-columns:68px 1fr 1fr;column-gap:8px;align-items:center}' +
       '.kp-lb{color:var(--kp-soluk);font-size:10px;letter-spacing:.06em;text-transform:uppercase}' +
       '.kp-l{display:flex;align-items:center;gap:6px;min-width:0}' +
-      '.kp-lc{position:relative;flex:1;height:4px;border-radius:2px;background:var(--kp-iz)}' +
+      '.kp-lc{position:relative;flex:1;height:5px;border-radius:3px;background:var(--kp-iz);overflow:hidden}' +
       '.kp-lc i{display:block;height:100%;width:0;max-width:100%;border-radius:2px;background:var(--kp-vurgu);' +
         'transition:width .4s ease-out,background-color .3s}' +
-      '.kp-lc b{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;border-radius:1px;' +
-        'background:var(--kp-parlak);box-shadow:0 0 0 1px var(--kp-zemin)}' +
-      '.kp-ld{flex:none;min-width:28px;text-align:right}' +
+      '.kp-ld{flex:none;min-width:28px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}' +
       // sistem: üç küçük halka, yanında değer ve ad
       '#kp-sis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}' +
       '.kp-o{display:flex;align-items:center;gap:7px;min-width:0}' +
@@ -334,7 +329,7 @@
     }
     function limitSatiri(on, ad) {
       function hucre(g) {
-        return '<span class="kp-l" data-g="' + g + '"><span class="kp-lc"><i></i><b hidden></b></span>' +
+        return '<span class="kp-l" data-g="' + g + '"><span class="kp-lc"><i></i></span>' +
           '<span class="kp-ld">—</span></span>';
       }
       var baslik = on === 'ag' ? 'Antigravity · Gemini havuzu' : on === 'ao' ? 'Antigravity · Claude/GPT havuzu' : ad;
@@ -355,7 +350,7 @@
       '<div id="kp-liste"></div>' +
       '<div id="kp-durum">' +
       '<div id="kp-cl">' +
-      '<div class="kp-lr kp-lb" title="Tıkla: yüzde / sıfırlanmaya kalan süre"><span></span><span>5 saat</span><span>Hafta</span></div>' +
+      '<div class="kp-lr kp-lb" title="Çubuk ve sayı kullanılan yüzdeyi gösterir; sıfırlanma süresi için değerin üzerine gel"><span>Kullanım</span><span>5 saat</span><span>Hafta</span></div>' +
       limitSatiri('c', 'Claude') + limitSatiri('x', 'Codex') +
       limitSatiri('ag', 'AG Gemini') + limitSatiri('ao', 'AG C/G') +
       '</div>' +
@@ -513,7 +508,7 @@
     var gostergeler = {};
     Array.prototype.forEach.call(kp.querySelectorAll('[data-g]'), function (g) {
       gostergeler[g.getAttribute('data-g')] = { kutu: g, halka: g.querySelector('.kp-hd'), cubuk: g.querySelector('.kp-lc i'),
-                                                isaret: g.querySelector('.kp-lc b'), deger: g.querySelector('.kp-od,.kp-ld') };
+                                                deger: g.querySelector('.kp-od,.kp-ld') };
     });
     function gosterge(ad, yuzde, metin, ipucu) {
       var g = gostergeler[ad];
@@ -541,38 +536,25 @@
     }
     // Kullanım limitleri: dolu yüzde + pencerenin sıfırlanmasına kalan süre.
     // Codex ve Antigravity satırları veri yoksa (kurulu/girişli değil) gizlenir.
-    var PENCERE = { '5': 18000, '7': 604800 };   // pencere uzunluğu (sn): geçen süre işareti buna göre yerleşir
-    var limitler = { c: null, x: null, ag: null, ao: null };
     function sure(sn) {
       var dk = Math.ceil(sn / 60);
       if (dk >= 1440) return Math.floor(dk / 1440) + 'g ' + Math.floor(dk % 1440 / 60) + 'sa';
       if (dk >= 60) return Math.floor(dk / 60) + 'sa ' + (dk % 60) + 'dk';
       return dk + 'dk';
     }
-    function kisaSure(sn) {
-      var dk = Math.ceil(sn / 60);
-      if (dk >= 1440) return Math.round(dk / 1440) + 'g';
-      if (dk >= 60) return Math.round(dk / 60) + 'sa';
-      return dk + 'dk';
-    }
     function limit(on, d) {
       var varMi = false;
-      limitler[on] = d;
       [['5', d && d.bes_saat, '5 saat'], ['7', d && d.hafta, 'hafta']].forEach(function (c) {
         var p = c[1], g = gostergeler[on + c[0]];
         if (!g) return;
         if (!p || !(p.yuzde >= 0)) {
           g.cubuk.style.width = '0';
-          g.isaret.hidden = true;
           g.kutu.classList.remove('kp-orta', 'kp-yuksek');
           g.kutu.removeAttribute('title');
           return yaz(g.deger, '—');
         }
         varMi = true;
-        var gecen = p.kalan > 0 ? 100 * (1 - p.kalan / PENCERE[c[0]]) : -1;
-        g.isaret.hidden = !(gecen >= 0 && gecen <= 100);
-        if (!g.isaret.hidden) g.isaret.style.left = gecen.toFixed(1) + '%';
-        gosterge(on + c[0], p.yuzde, kalanGoster && p.kalan > 0 ? kisaSure(p.kalan) : '%' + p.yuzde,
+        gosterge(on + c[0], p.yuzde, '%' + p.yuzde,
           ({x: 'Codex', ag: 'Antigravity Gemini', ao: 'Antigravity Claude/GPT', c: 'Claude'}[on]) + ' · ' + c[2] + ': %' + p.yuzde + ' kullanıldı' +
           (p.kalan > 0 ? ', ' + sure(p.kalan) + ' sonra sıfırlanır' : ''));
       });
@@ -659,15 +641,6 @@
         return odak();
       }
       if (el.closest('#kp-cikis')) return cikis();
-      if (el.closest('#kp-cl')) {
-        kalanGoster = !kalanGoster;
-        try { localStorage.setItem('kutuphane.panel.kalan', kalanGoster ? '1' : '0'); } catch (err) {}
-        limit('c', limitler.c);
-        limit('x', limitler.x);
-        limit('ag', limitler.ag);
-        limit('ao', limitler.ao);
-        return odak();
-      }
       var satir = el.closest('.kp-s');
       if (satir) {
         islem('sec', Number(satir.getAttribute('data-no')));
