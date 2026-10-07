@@ -38,6 +38,7 @@ import signal
 import struct
 import subprocess
 import sys
+import tempfile
 import termios
 import threading
 import time
@@ -581,6 +582,10 @@ def codex_usage():
 
 
 # Antigravity CLI'nin /usage komutu -p modunda sadece kotayı okur; model turu başlatmaz.
+# Kapalı: 2026-10-07'de açıldıktan ~1,5 saat sonra sunucu yanıt vermez oldu (agy her çağrıda
+# language server başlatıyor, öldürülmeyen kalıntılar belleği bitirmiş olabilir). Sunucuda
+# `agy -p /usage` sonrası geride süreç kalmadığı görülmeden açma.
+AGY_ENABLED = False
 AGY_REFRESH = 120
 AGY_STALE = 900
 AGY_TIMEOUT = 30
@@ -591,14 +596,28 @@ agy_lock = threading.Lock()
 def agy_read_limits():
     """agy /usage JSON çıktısından Gemini ve Claude/GPT kota havuzlarını seç."""
     env = dict(os.environ, PATH=os.path.join(HOME, ".local", "bin") + os.pathsep + os.environ.get("PATH", ""))
-    try:
-        p = subprocess.run(["agy", "-p", "/usage", "--output-format", "json"], cwd=HOME,
-                           env=env, capture_output=True, text=True, timeout=AGY_TIMEOUT)
-        if p.returncode != 0:
+    # Çıktı borusu yerine dosya: arkada kalan süreç boruyu açık tutup okumayı bekletmesin
+    with tempfile.TemporaryFile() as outf:
+        try:
+            p = subprocess.Popen(["agy", "-p", "/usage", "--output-format", "json"], cwd=HOME, env=env,
+                                 stdin=subprocess.DEVNULL, stdout=outf, stderr=subprocess.DEVNULL,
+                                 start_new_session=True)
+        except OSError:
             return None
-        result = json.loads(p.stdout).get("command", {}).get("data", {})
-    except (OSError, subprocess.TimeoutExpired, ValueError, AttributeError):
-        return None
+        try:
+            if p.wait(timeout=AGY_TIMEOUT) != 0:
+                return None
+            outf.seek(0)
+            result = json.loads(outf.read()).get("command", {}).get("data", {})
+        except (OSError, subprocess.TimeoutExpired, ValueError, AttributeError):
+            return None
+        finally:
+            # agy arkasında language server bırakabilir: süreç grubunu toptan öldür
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            p.wait()
     groups = result.get("groups") if isinstance(result, dict) else None
     if not isinstance(groups, list):
         return None
@@ -643,6 +662,8 @@ def agy_refresh():
 
 def agy_usage():
     """Son bilinen Antigravity kotaları; yenileme panel isteğini bekletmez."""
+    if not AGY_ENABLED:
+        return {}
     now = time.time()
     with agy_lock:
         if not agy["busy"] and now - agy["t"] >= AGY_REFRESH:

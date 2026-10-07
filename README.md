@@ -105,3 +105,5 @@ Resmî belgeler: [alt satır menüsü](https://learn.chatgpt.com/docs/developer-
 ### Antigravity CLI kullanım limitleri
 
 Panel, Antigravity CLI (`agy`) kurulu ve giriş yapılmışsa `/usage` komutunu salt okunur biçimde JSON modunda çalıştırır. Model isteği göndermez ve kullanım harcamaz. Gemini havuzu ile Claude/GPT havuzu (panelde `AG C/G`) ayrı satırlarda, 5 saatlik ve haftalık kalan oranlarıyla görünür. API sonucu arka planda en fazla 2 dakikada bir yeniler; CLI kurulu/girişli değilse veya sorgu başarısızsa Antigravity satırları gizlenir.
+
+**Şu an kapalı** (`kutuphane_api.py` içinde `AGY_ENABLED = False`): 2026-10-07'de açıldıktan yaklaşık 1,5 saat sonra 2 GB RAM'li sunucu yanıt vermez oldu ve site Cloudflare 1033 verdi. Şüphe, `agy`'nin her çağrıda başlattığı language server'ın öldürülmeden birikmesi. Sorgu artık kendi süreç grubunda çalışıp sonunda grubuyla öldürülüyor; yeniden açmadan önce sunucuda `agy -p /usage --output-format json; sleep 5; pgrep -af 'agy|language_server'` ile geride süreç kalmadığını doğrula.

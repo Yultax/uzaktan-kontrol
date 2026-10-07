@@ -48,6 +48,7 @@ VDS'e tarayıcıdan terminal erişimi. Dışarıdan bilkenters'ın "Kütüphane"
 
 ## Bekleyen konular
 
+- Antigravity kullanım satırı kapalı (`AGY_ENABLED = False`, README'de neden ve doğrulama komutu var). API'den başlatılan her alt süreç kendi süreç grubunda çalışmalı ve sonunda grubuyla öldürülmeli: `kutuphane-api` `KillMode=process` ile çalıştığından kalıntılar servis yeniden başlasa da yaşar, 2 GB RAM'li sunucuyu kilitler ve tünel düşer (Cloudflare 1033).
 - `bilkent.codes` geçişi 2026-10-02'de tamamlandı; sunucudaki Caddyfile ve `cloudflared` elle kuruldu (`kurulum.sh`'nin üreteceğiyle aynı Caddyfile), `kurulum.sh`'nin yeni tünel adımları sunucuda baştan sona henüz çalıştırılmadı.
 - Cloudflare'de açık olanlar: Always Use HTTPS, yalnızca TLS 1.3 (min TLS 1.3), HSTS (12 ay, includeSubDomains, preload kapalı), nosniff, HTTP/3, ECH, Bot Fight Mode, `/api/giris` hız sınırı kuralı (IP başına 10 sn'de 5 istek → 10 sn blok; Free planın tek seçeneği).
 - Cloudflare Access (e-postaya tek kullanımlık kod) kurulmadı: Zero Trust Free planı $0 ama etkinleştirmek için kart/PayPal ve fatura adresi istiyor, bunu kullanıcı girmeli. Kurulursa yalnızca oturum arkasındaki yollar korunmalı, `/kutuphane`, `/giris`, `/site/*`, `/api/giris`, `/api/oturum` Bypass kalmalı; yine de `bilkent.codes/` yabancıya Cloudflare giriş ekranı gösterir (kamuflaj ödünü, kullanıcıyla konuş).
