@@ -565,11 +565,11 @@ def codex_refresh():
                 codex["data"], codex["ok"] = data, time.time()
 
 
-def codex_usage():
+def codex_usage(force=False):
     """Son bilinen Codex limitleri; süresi geldiyse arka planda yeniler (isteği bekletmez)."""
     now = time.time()
     with codex_lock:
-        if not codex["busy"] and now - codex["t"] >= CODEX_REFRESH:
+        if not codex["busy"] and (force or now - codex["t"] >= CODEX_REFRESH):
             codex["busy"], codex["t"] = True, now
             threading.Thread(target=codex_refresh, daemon=True).start()
         data = codex["data"] if now - codex["ok"] < CODEX_STALE else {}
@@ -660,13 +660,13 @@ def agy_refresh():
                 agy["data"], agy["ok"] = data, time.time()
 
 
-def agy_usage():
+def agy_usage(force=False):
     """Son bilinen Antigravity kotaları; yenileme panel isteğini bekletmez."""
     if not AGY_ENABLED:
         return {}
     now = time.time()
     with agy_lock:
-        if not agy["busy"] and now - agy["t"] >= AGY_REFRESH:
+        if not agy["busy"] and (force or now - agy["t"] >= AGY_REFRESH):
             agy["busy"], agy["t"] = True, now
             threading.Thread(target=agy_refresh, daemon=True).start()
         data = agy["data"] if now - agy["ok"] < AGY_STALE else {}
@@ -680,13 +680,13 @@ def agy_usage():
     return out
 
 
-def panel_state():
+def panel_state(force_usage=False):
     wins = list_windows()
     per, system = sample_usage()
     for w in wins:
         w["ram"], w["cpu"] = per.get(w["no"], (0, 0))
-    return {"sekmeler": wins, "sistem": system, "claude": claude_usage(), "codex": codex_usage(),
-            "antigravity": agy_usage()}
+    return {"sekmeler": wins, "sistem": system, "claude": claude_usage(), "codex": codex_usage(force_usage),
+            "antigravity": agy_usage(force_usage)}
 
 
 def clean_title(title, host):
@@ -910,7 +910,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get("X-Kutuphane") != "1":
                 return self._send(403, {"error": "forbidden"})
             try:
-                state = panel_state()
+                state = panel_state(force_usage=(qs.get("yenile") == ["1"]))
                 panel["seen"] = time.time()
                 set_bar_hidden(True)
                 return self._send(200, state)
