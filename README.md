@@ -68,6 +68,8 @@ passwd arda   # Linux/sudo şifresi ayrı; istersen aynı yap
 
 Yüklenen görseller: `/home/arda/uploads/`
 
+Sunucudaki bir sayfaya ya da görsele bakmak: dosyayı `~/onizleme/` altına koy, `https://bilkent.codes/api/onizleme/` adresinden aç (oturum gerekir, betik çalışmaz).
+
 "Claude bekliyor" göstergesi için `~/.claude/settings.json` içine şu hook'lar eklenir (sunucuya özel ayar, `kurulum.sh` kurmaz):
 
 ```json

@@ -17,6 +17,7 @@ Sadece Python standart kütüphanesi kullanır.
   POST /api/resize  ?sid=   {"cols":..,"rows":..}
   POST /api/close   ?sid=
   POST /api/upload  (gövde: görsel)            -> {"path":..}
+  GET  /api/onizleme/[yol]                      -> ~/onizleme altındaki dosya ya da klasör listesi (betik çalışmaz)
   GET  /api/sekmeler                           -> {"sekmeler":[{"no","ad","aktif","komut","dizin","dal","bolme","ram","cpu",
                                                                  "baslik","adli","bekliyor"}],
                                                    "sistem":{"cpu","ram","ram_toplam","disk"},
@@ -43,7 +44,8 @@ import termios
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from html import escape
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 HOST, PORT = "127.0.0.1", int(os.environ.get("KUTUPHANE_PORT", "7682"))
 HOME = os.path.expanduser("~")
@@ -57,6 +59,21 @@ IDLE_TIMEOUT = 90               # bu kadar sessiz kalan oturum kapatılır (tmux
 MAX_SESSIONS = 8
 MAX_UPLOAD = 25 * 1024 * 1024
 IMAGE_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp"}
+# Sunucuda üretilen sayfa ve ekran görüntülerine tarayıcıdan bakmak için: yalnızca bu klasör, yalnızca bu türler
+PREVIEW_DIR = os.path.join(HOME, "onizleme")
+PREVIEW_URL = "/api/onizleme"
+MAX_PREVIEW = 32 * 1024 * 1024
+PREVIEW_TYPES = {
+    "html": "text/html; charset=utf-8", "txt": "text/plain; charset=utf-8", "md": "text/plain; charset=utf-8",
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "webp": "image/webp",
+    "svg": "image/svg+xml", "pdf": "application/pdf",
+}
+# Önizlenen sayfa terminalle aynı adreste açılır: betik çalıştırmasın, form yollamasın, başka yere bağlanmasın
+PREVIEW_HEADERS = {
+    "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; "
+                               "font-src data:; form-action 'none'; base-uri 'none'",
+    "X-Content-Type-Options": "nosniff",
+}
 AUTH_FILE = os.environ.get("KUTUPHANE_AUTH", "/etc/kutuphane/auth.json")
 COOKIE = "bk_oturum"
 LOGIN_FILE = os.path.join(os.path.dirname(AUTH_FILE), "oturumlar.json")
@@ -783,6 +800,35 @@ def janitor():
             set_bar_hidden(False)
 
 
+def preview_path(rel, base=None):
+    """Önizleme klasöründeki dosya ya da klasörün gerçek yolu; klasör dışına çıkan ya da gizli yol için None."""
+    base = os.path.realpath(base or PREVIEW_DIR)
+    parts = [p for p in rel.split("/") if p]
+    if any(p.startswith(".") for p in parts):
+        return None
+    path = os.path.realpath(os.path.join(base, *parts))
+    if path != base and not path.startswith(base + os.sep):
+        return None  # ".." ya da dışarıyı gösteren sembolik bağ
+    return path if os.path.exists(path) else None
+
+
+def preview_listing(path, rel):
+    """Klasör içeriği: alt klasörler ve gösterilebilen dosyalar, bağlantılı düz bir sayfa."""
+    rows = []
+    for name in sorted(os.listdir(path)):
+        full = os.path.join(path, name)
+        is_dir = os.path.isdir(full)
+        if name.startswith(".") or not (is_dir or name.rsplit(".", 1)[-1].lower() in PREVIEW_TYPES):
+            continue
+        label = escape(name + ("/" if is_dir else ""))
+        rows.append(f'<li><a href="{quote(name)}{"/" if is_dir else ""}">{label}</a></li>')
+    up = '<li><a href="../">../</a></li>' if rel.strip("/") else ""
+    title = escape("/" + rel.strip("/"))
+    return ("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+            f"<title>{title}</title><style>body{{font:16px/1.9 system-ui,sans-serif;margin:1.5rem}}"
+            f"ul{{list-style:none;padding:0}}</style><h1>{title}</h1><ul>{up}{''.join(rows)}</ul>").encode()
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     server_version = "kutuphane"
@@ -818,6 +864,26 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("too large")
         self._consumed = True
         return self.rfile.read(length) if length else b""
+
+    def _preview(self, rel):
+        # Caddy bu yola oturumsuz isteği geçirmez; API doğrudan çağrılırsa diye burada da sorulur
+        if not self._authed():
+            return self._send(403, {"error": "giris gerekli"})
+        path = preview_path(rel)
+        if not path:
+            return self._send(404, {"error": "not found"})
+        if os.path.isdir(path):
+            if not rel.endswith("/"):  # göreli bağlantılar klasörün içinden çözülsün
+                return self._send(302, headers={"Location": PREVIEW_URL + quote(rel) + "/"})
+            index = os.path.join(path, "index.html")
+            if not os.path.isfile(index):
+                return self._send(200, preview_listing(path, rel), PREVIEW_TYPES["html"], PREVIEW_HEADERS)
+            path = index
+        ctype = PREVIEW_TYPES.get(path.rsplit(".", 1)[-1].lower())
+        if not ctype or os.path.getsize(path) > MAX_PREVIEW:
+            return self._send(404, {"error": "not found"})
+        with open(path, "rb") as f:
+            return self._send(200, f.read(), ctype, PREVIEW_HEADERS)
 
     def _session(self, qs):
         sid = (qs.get("sid") or [""])[0]
@@ -918,6 +984,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(500, {"error": str(e)})
         if url.path == "/api/health":
             return self._send(200, {"ok": True, "sessions": len(sessions)})
+        if url.path == PREVIEW_URL or url.path.startswith(PREVIEW_URL + "/"):
+            try:
+                return self._preview(unquote(url.path[len(PREVIEW_URL):]))
+            except OSError as e:
+                return self._send(500, {"error": str(e)})
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
